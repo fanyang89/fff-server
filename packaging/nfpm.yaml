@@ -18,11 +18,16 @@ license: "GPLv2+"
 # distribution is licensed under GPLv2+.
 
 # Runtime dependencies. Binaries are fully static (musl); the only requirements
-# are systemd (for the units) and shadow-utils (useradd in the pre-install script).
+# are systemd (for the units) and a shadow-utiles equivalent (useradd in the
+# pre-install script). Package names differ per distro.
 overrides:
   rpm:
     depends:
       - shadow-utils
+      - systemd
+  archlinux:
+    depends:
+      - shadow
       - systemd
 
 contents:
