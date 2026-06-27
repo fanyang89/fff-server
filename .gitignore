@@ -7,3 +7,8 @@
 .tmp/
 build/
 dist/
+
+# Env (keep .env.example tracked)
+.env
+.env.*
+!.env.example
