@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Code } from "lucide-react"
 import { Footer } from "@/components/footer"
+import { MaintenanceDialog } from "@/components/maintenance-dialog"
 import { McpDialog } from "@/components/mcp-dialog"
 import { Results } from "@/components/results"
 import { SearchBar } from "@/components/search-bar"
@@ -26,6 +27,7 @@ export default function App() {
               API 文档
             </a>
           </Button>
+          <MaintenanceDialog />
           <McpDialog />
         </div>
       </header>

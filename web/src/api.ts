@@ -22,6 +22,27 @@ export type HealthResponse = {
   updatedb_available: boolean
 }
 
+export type ReindexRecord = {
+  started_at_unix: number
+  duration_secs: number
+  success: boolean
+  error: string | null
+}
+
+export type StatsResponse = {
+  index: {
+    db_present: boolean
+    db_size_bytes: number | null
+    db_mtime_unix: number | null
+    reindexing: boolean
+  }
+  last_reindex: ReindexRecord | null
+}
+
+export type ReindexResponse = {
+  status: "started" | "already-running"
+}
+
 export class SearchError extends Error {
   readonly retryable: boolean
 
@@ -82,4 +103,27 @@ export async function fetchHealth(
   })
   if (!res.ok) throw new Error(`health failed (${res.status})`)
   return (await res.json()) as HealthResponse
+}
+
+export async function fetchStats(
+  signal: AbortSignal,
+): Promise<StatsResponse> {
+  const res = await fetch("/api/stats", {
+    signal,
+    headers: { accept: "application/json" },
+  })
+  if (!res.ok) throw new Error(`stats failed (${res.status})`)
+  return (await res.json()) as StatsResponse
+}
+
+export async function triggerReindex(
+  signal: AbortSignal,
+): Promise<ReindexResponse> {
+  const res = await fetch("/api/reindex", {
+    method: "POST",
+    signal,
+    headers: { accept: "application/json" },
+  })
+  if (!res.ok) throw new Error(`reindex failed (${res.status})`)
+  return (await res.json()) as ReindexResponse
 }

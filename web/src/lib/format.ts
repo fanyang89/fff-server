@@ -20,3 +20,22 @@ export function formatRelativeTime(unixSeconds: number | null): string {
   const day2 = String(d.getDate()).padStart(2, "0")
   return `${y}-${m}-${day2}`
 }
+
+export function formatDuration(secs: number): string {
+  if (secs < 60) return `${secs.toFixed(secs < 10 ? 1 : 0)} 秒`
+  const min = Math.floor(secs / 60)
+  const rem = Math.round(secs % 60)
+  return rem ? `${min} 分 ${rem} 秒` : `${min} 分`
+}
+
+export function formatBytes(bytes: number | null | undefined): string {
+  if (!bytes) return "—"
+  const units = ["B", "KB", "MB", "GB", "TB"]
+  let val = bytes
+  let i = 0
+  while (val >= 1024 && i < units.length - 1) {
+    val /= 1024
+    i++
+  }
+  return `${val.toFixed(val < 10 && i > 0 ? 1 : 0)} ${units[i]}`
+}
