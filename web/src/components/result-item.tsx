@@ -1,11 +1,20 @@
-import { File, Folder } from "lucide-react"
-import type { FileItem } from "@/api"
+import { ArrowUpRight, File, Folder } from "lucide-react"
+import { buildBrowseUrl, type FileItem } from "@/api"
 
-export function ResultItem({ item }: { item: FileItem }) {
+type ResultItemProps = {
+  item: FileItem
+  fileServerUrl: string | null
+}
+
+export function ResultItem({ item, fileServerUrl }: ResultItemProps) {
   const isDir = item.type === "directory"
+  const href =
+    fileServerUrl !== null
+      ? buildBrowseUrl(fileServerUrl, item.relative_path, isDir)
+      : null
 
-  return (
-    <div className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-muted/50">
+  const inner = (
+    <>
       {isDir ? (
         <Folder className="size-4 shrink-0 text-muted-foreground" />
       ) : (
@@ -17,6 +26,28 @@ export function ResultItem({ item }: { item: FileItem }) {
           {item.relative_path}
         </div>
       </div>
-    </div>
+      {href !== null && (
+        <ArrowUpRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      )}
+    </>
+  )
+
+  const className =
+    "group flex items-center gap-3 px-3 py-2 transition-colors hover:bg-muted/50"
+
+  if (href === null) {
+    return <div className={className}>{inner}</div>
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className={className}
+      draggable={false}
+    >
+      {inner}
+    </a>
   )
 }

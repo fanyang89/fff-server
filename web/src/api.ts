@@ -43,6 +43,10 @@ export type ReindexResponse = {
   status: "started" | "already-running"
 }
 
+export type FileServerConfig = {
+  url: string | null
+}
+
 export class SearchError extends Error {
   readonly retryable: boolean
 
@@ -126,4 +130,31 @@ export async function triggerReindex(
   })
   if (!res.ok) throw new Error(`reindex failed (${res.status})`)
   return (await res.json()) as ReindexResponse
+}
+
+export async function fetchFileServer(
+  signal: AbortSignal,
+): Promise<FileServerConfig> {
+  const res = await fetch("/api/file-server", {
+    signal,
+    headers: { accept: "application/json" },
+  })
+  if (!res.ok) throw new Error(`file-server failed (${res.status})`)
+  return (await res.json()) as FileServerConfig
+}
+
+/// Build a file-browse URL by appending a result's relative path to the
+/// file-server base. Encodes each path segment (preserves `/`) and adds a
+/// trailing slash for directories so dufs/caddy/nginx show the listing.
+export function buildBrowseUrl(
+  base: string,
+  relativePath: string,
+  isDir: boolean,
+): string {
+  const cleanBase = base.replace(/\/+$/, "")
+  const enc = relativePath
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")
+  return `${cleanBase}/${enc}${isDir ? "/" : ""}`
 }

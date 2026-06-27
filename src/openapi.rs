@@ -13,6 +13,7 @@ use utoipa::OpenApi;
         crate::routes::search::glob,
         crate::routes::health::health,
         crate::routes::health::base_path,
+        crate::routes::health::file_server,
         crate::routes::stats::stats,
         crate::routes::reindex::reindex,
     ),
@@ -26,6 +27,7 @@ use utoipa::OpenApi;
         crate::dto::ReindexRecordDto,
         crate::dto::BasePathResponse,
         crate::dto::ReindexResponse,
+        crate::dto::FileServerResponse,
     )),
     tags(
         (name = "search", description = "Filename / path search via plocate"),

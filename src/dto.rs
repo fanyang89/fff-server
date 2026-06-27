@@ -82,3 +82,10 @@ pub struct ReindexResponse {
     /// "started" or "already-running".
     pub status: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct FileServerResponse {
+    /// Base URL of an external file-browsing service, or null if unconfigured.
+    /// Clients append `/<result.relative_path>` (URL-encoding each segment).
+    pub url: Option<String>,
+}

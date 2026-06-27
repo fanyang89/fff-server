@@ -7,9 +7,10 @@ import { StatusBar } from "@/components/status-bar"
 type ResultsProps = {
   state: SearchState
   onRetry: () => void
+  fileServerUrl: string | null
 }
 
-export function Results({ state, onRetry }: ResultsProps) {
+export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
   const { status, data, error } = state
 
   if (status === "idle") {
@@ -59,6 +60,7 @@ export function Results({ state, onRetry }: ResultsProps) {
       <ResultList
         items={data?.items ?? []}
         loading={loading && !data}
+        fileServerUrl={fileServerUrl}
       />
     </div>
   )

@@ -3,7 +3,7 @@ use std::path::Path;
 use axum::extract::State;
 use axum::Json;
 
-use crate::dto::{BasePathResponse, HealthResponse};
+use crate::dto::{BasePathResponse, FileServerResponse, HealthResponse};
 use crate::error::Result;
 use crate::state::AppState;
 
@@ -47,6 +47,20 @@ pub async fn health(State(state): State<AppState>) -> Result<Json<HealthResponse
 pub async fn base_path(State(state): State<AppState>) -> Result<Json<BasePathResponse>> {
     Ok(Json(BasePathResponse {
         base_path: state.base_path.to_string_lossy().into_owned(),
+    }))
+}
+
+/// External file-server base URL (optional). Clients build browse links by
+/// appending `/<result.relative_path>` to this URL.
+#[utoipa::path(
+    get,
+    path = "/api/file-server",
+    tag = "lifecycle",
+    responses((status = 200, description = "File-server base URL", body = FileServerResponse))
+)]
+pub async fn file_server(State(state): State<AppState>) -> Result<Json<FileServerResponse>> {
+    Ok(Json(FileServerResponse {
+        url: state.file_server_url.as_deref().map(str::to_owned),
     }))
 }
 

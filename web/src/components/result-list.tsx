@@ -5,9 +5,10 @@ import { ResultItem } from "./result-item"
 type ResultListProps = {
   items: FileItem[]
   loading: boolean
+  fileServerUrl: string | null
 }
 
-export function ResultList({ items, loading }: ResultListProps) {
+export function ResultList({ items, loading, fileServerUrl }: ResultListProps) {
   if (loading) {
     return (
       <div className="space-y-1">
@@ -27,7 +28,11 @@ export function ResultList({ items, loading }: ResultListProps) {
   return (
     <div className="space-y-0.5">
       {items.map((item, i) => (
-        <ResultItem key={`${item.absolute_path}-${i}`} item={item} />
+        <ResultItem
+          key={`${item.absolute_path}-${i}`}
+          item={item}
+          fileServerUrl={fileServerUrl}
+        />
       ))}
     </div>
   )

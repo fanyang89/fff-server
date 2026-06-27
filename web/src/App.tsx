@@ -7,6 +7,7 @@ import { Results } from "@/components/results"
 import { SearchBar } from "@/components/search-bar"
 import { Button } from "@/components/ui/button"
 import { useDebounce } from "@/hooks/use-debounce"
+import { useFileServer } from "@/hooks/use-file-server"
 import { useHealth } from "@/hooks/use-health"
 import { useSearch } from "@/hooks/use-search"
 
@@ -15,6 +16,7 @@ export default function App() {
   const debounced = useDebounce(query, 300)
   const { state, refetch } = useSearch(debounced)
   const health = useHealth()
+  const fileServer = useFileServer()
 
   return (
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col px-4 py-8">
@@ -35,7 +37,11 @@ export default function App() {
       <main className="flex flex-1 flex-col gap-4">
         <SearchBar value={query} onChange={setQuery} />
         <div className="flex-1">
-          <Results state={state} onRetry={refetch} />
+          <Results
+            state={state}
+            onRetry={refetch}
+            fileServerUrl={fileServer.url}
+          />
         </div>
       </main>
 

@@ -21,6 +21,7 @@ pub struct AppState {
     pub plocate_bin: Arc<OsString>,
     pub updatedb_bin: Arc<OsString>,
     pub max_results: usize,
+    pub file_server_url: Arc<Option<String>>,
     reindexing: Arc<AtomicBool>,
     last_run: Arc<Mutex<Option<ReindexRecord>>>,
     search_concurrency: Arc<Semaphore>,
@@ -57,6 +58,7 @@ impl AppState {
             plocate_bin: Arc::new(cfg.plocate_bin.clone().into()),
             updatedb_bin: Arc::new(cfg.updatedb_bin.clone().into()),
             max_results: cfg.max_results,
+            file_server_url: Arc::new(normalize_file_server_url(cfg.file_server_url.as_deref())),
             reindexing: Arc::new(AtomicBool::new(false)),
             last_run: Arc::new(Mutex::new(None)),
             search_concurrency: Arc::new(Semaphore::new(cfg.max_concurrent_searches.max(1))),
@@ -303,6 +305,24 @@ fn build_item(abs: &str, base_path: &Path) -> FileItemDto {
         relative_path: relative,
         absolute_path: abs_trimmed.into(),
     }
+}
+
+/// Validate an externally-configured file-server URL. Accepts http/https only;
+/// trims trailing slashes so callers can safely append `/<relative_path>`.
+/// Returns None (with a warning) on invalid input rather than failing startup.
+fn normalize_file_server_url(raw: Option<&str>) -> Option<String> {
+    let raw = raw?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    if !(raw.starts_with("http://") || raw.starts_with("https://")) {
+        tracing::warn!(
+            value = raw,
+            "file_server_url must be http(s)://...; ignoring"
+        );
+        return None;
+    }
+    Some(raw.trim_end_matches('/').to_owned())
 }
 
 /// Read RSS (bytes) and thread count from `/proc/self/status` (Linux).

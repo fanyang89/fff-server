@@ -64,6 +64,13 @@ pub struct Config {
         default_value_t = 3600
     )]
     pub updatedb_timeout_secs: u64,
+
+    /// Base URL of an external file-browsing service (dufs / caddy file_server /
+    /// nginx autoindex ...) serving the same tree as `--base-path`. When set,
+    /// clients can build a browse link per search result by appending its
+    /// relative path. Optional; omitted = no browse links.
+    #[arg(long, env = "PLOCATE_SERVER_FILE_SERVER_URL")]
+    pub file_server_url: Option<String>,
 }
 
 impl Config {
