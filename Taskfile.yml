@@ -37,6 +37,40 @@ tasks:
     cmds:
       - cargo clean
 
+  plocate:
+    desc: Build static musl plocate + updatedb (vendored zstd + jemalloc-static)
+    preconditions:
+      - sh: command -v zig >/dev/null
+        msg: "zig not installed"
+      - sh: test -f third_party/plocate-1.1.24.tar.gz
+        msg: "missing third_party/plocate-1.1.24.tar.gz"
+      - sh: test -f third_party/zstd-1.5.6.tar.gz
+        msg: "missing third_party/zstd-1.5.6.tar.gz"
+      - sh: test -f third_party/jemalloc-5.3.0.tar.bz2
+        msg: "missing third_party/jemalloc-5.3.0.tar.bz2"
+    sources:
+      - third_party/plocate-1.1.24.tar.gz
+      - third_party/zstd-1.5.6.tar.gz
+      - third_party/jemalloc-5.3.0.tar.bz2
+      - scripts/build-plocate-musl.sh
+    generates:
+      - dist/musl/plocate
+      - dist/musl/updatedb
+    cmds:
+      - bash scripts/build-plocate-musl.sh
+      - task: plocate-inspect
+
+  plocate-inspect:
+    desc: Verify the musl plocate/updatedb binaries are static and runnable
+    preconditions:
+      - sh: test -f dist/musl/plocate
+        msg: "binaries missing; run: task plocate first"
+    cmds:
+      - file dist/musl/plocate dist/musl/updatedb
+      - du -h dist/musl/plocate dist/musl/updatedb
+      - sh -c "ldd dist/musl/plocate 2>&1 || true"
+      - dist/musl/plocate --version
+
   inspect:
     desc: Report whether the built binary is statically linked and its size
     preconditions:
