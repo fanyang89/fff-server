@@ -4,13 +4,13 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 const SERVER_URL = "http://127.0.0.1:8787/mcp"
 
@@ -35,7 +35,7 @@ const TOOLS = [
   },
 ]
 
-export function McpSheet() {
+export function McpDialog() {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -51,23 +51,23 @@ export function McpSheet() {
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Plug className="size-4" />
           配置 MCP
         </Button>
-      </SheetTrigger>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>配置 MCP</SheetTitle>
-          <SheetDescription>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>配置 MCP</DialogTitle>
+          <DialogDescription>
             让 AI 客户端通过 Model Context Protocol 直接调用本服务的文件搜索。
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto pr-1">
-          <section className="mt-6 space-y-3">
+        <div className="space-y-5">
+          <section className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">客户端配置</span>
               <Button
@@ -123,7 +123,7 @@ export function McpSheet() {
           </section>
         </div>
 
-        <div className="border-t pt-3">
+        <div className="flex justify-end">
           <Button asChild variant="link" size="sm" className="h-auto gap-1.5 px-0">
             <a
               href="https://modelcontextprotocol.io"
@@ -135,7 +135,7 @@ export function McpSheet() {
             </a>
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

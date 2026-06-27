@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { McpSheet } from "@/components/mcp-sheet"
+import { McpDialog } from "@/components/mcp-dialog"
 import { Results } from "@/components/results"
 import { SearchBar } from "@/components/search-bar"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -14,7 +14,7 @@ export default function App() {
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col px-4 py-8">
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">plocate-web</h1>
-        <McpSheet />
+        <McpDialog />
       </header>
 
       <main className="flex flex-1 flex-col gap-4">
