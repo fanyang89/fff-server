@@ -9,6 +9,8 @@ use std::time::{Duration, Instant, SystemTime};
 use tokio::process::Command;
 use tokio::sync::Semaphore;
 
+use moka::sync::Cache;
+
 use crate::config::Config;
 use crate::dto::{FileItemDto, SearchResponse};
 use crate::error::{AppError, Result};
@@ -22,12 +24,22 @@ pub struct AppState {
     pub updatedb_bin: Arc<OsString>,
     pub max_results: usize,
     pub file_server_url: Arc<Option<String>>,
+    /// Per-path `is_dir` cache (stat results). Keyed by absolute path; values
+    /// are valid for the current reindex window — cleared on reindex completion.
+    /// `moka::sync::Cache` is `Clone` and shares its store internally, so no
+    /// `Arc` wrapper is needed.
+    stat_cache: Cache<String, bool>,
     reindexing: Arc<AtomicBool>,
     last_run: Arc<Mutex<Option<ReindexRecord>>>,
     search_concurrency: Arc<Semaphore>,
     search_timeout: Duration,
     updatedb_timeout: Duration,
 }
+
+/// Upper bound on the stat cache size. Each entry is ~100 B, so this caps
+/// memory near 10 MB. Normal use stays far below (only searched paths enter,
+/// and the cache is cleared on every reindex).
+const STAT_CACHE_CAPACITY: u64 = 100_000;
 
 #[derive(Clone, Debug)]
 pub struct ReindexRecord {
@@ -59,6 +71,7 @@ impl AppState {
             updatedb_bin: Arc::new(cfg.updatedb_bin.clone().into()),
             max_results: cfg.max_results,
             file_server_url: Arc::new(normalize_file_server_url(cfg.file_server_url.as_deref())),
+            stat_cache: Cache::new(STAT_CACHE_CAPACITY),
             reindexing: Arc::new(AtomicBool::new(false)),
             last_run: Arc::new(Mutex::new(None)),
             search_concurrency: Arc::new(Semaphore::new(cfg.max_concurrent_searches.max(1))),
@@ -102,7 +115,7 @@ impl AppState {
         let raw = self
             .run_plocate(query, Some(cap), case_insensitive, basename_only)
             .await?;
-        let items = parse_paths(&raw, &self.base_path);
+        let items = parse_paths(&raw, &self.base_path, &self.stat_cache);
         let total_returned = items.len();
         let truncated = total_returned == cap && cap > 0;
         let paged: Vec<FileItemDto> = items
@@ -176,6 +189,9 @@ impl AppState {
             if let Ok(mut g) = state.last_run.lock() {
                 *g = Some(rec);
             }
+            // The index reflects the filesystem as of now, so stat results from
+            // the previous window are stale — drop them.
+            state.stat_cache.invalidate_all();
             state.reindexing.store(false, Ordering::Release);
         });
         ReindexOutcome::Started
@@ -271,7 +287,7 @@ async fn run_with_timeout(
 }
 
 /// Parse NUL-separated plocate output into DTO items.
-fn parse_paths(raw: &[u8], base_path: &Path) -> Vec<FileItemDto> {
+fn parse_paths(raw: &[u8], base_path: &Path, stat_cache: &Cache<String, bool>) -> Vec<FileItemDto> {
     if raw.is_empty() {
         return Vec::new();
     }
@@ -281,13 +297,16 @@ fn parse_paths(raw: &[u8], base_path: &Path) -> Vec<FileItemDto> {
             // plocate output is UTF-8 bytes; filesystems may contain non-UTF-8,
             // lossy-convert those rare cases.
             let abs = String::from_utf8_lossy(chunk).into_owned();
-            build_item(&abs, base_path)
+            build_item(&abs, base_path, stat_cache)
         })
         .collect()
 }
 
-fn build_item(abs: &str, base_path: &Path) -> FileItemDto {
-    let is_dir = abs.ends_with('/') || abs.ends_with(std::path::MAIN_SEPARATOR);
+fn build_item(abs: &str, base_path: &Path, stat_cache: &Cache<String, bool>) -> FileItemDto {
+    // plocate does not tag directories in its output (no trailing slash, no
+    // type field), so directory-ness is determined by stat at query time and
+    // memoized in `stat_cache` for the duration of the current reindex window.
+    let is_dir = is_dir_cached(stat_cache, abs);
     let abs_trimmed = abs.trim_end_matches('/').trim_end_matches(std::path::MAIN_SEPARATOR);
     let relative = abs_trimmed
         .strip_prefix(base_path.to_string_lossy().as_ref())
@@ -305,6 +324,21 @@ fn build_item(abs: &str, base_path: &Path) -> FileItemDto {
         relative_path: relative,
         absolute_path: abs_trimmed.into(),
     }
+}
+
+/// Look up whether `abs` is a directory, using the shared stat cache. On a
+/// cache miss, `symlink_metadata` is called (without following symlinks, so
+/// symlinks — even to directories — are reported as files) and the result is
+/// stored. Stat failures (deleted/unreadable) default to `false`.
+fn is_dir_cached(cache: &Cache<String, bool>, abs: &str) -> bool {
+    if let Some(v) = cache.get(abs) {
+        return v;
+    }
+    let is_dir = std::fs::symlink_metadata(abs)
+        .map(|m| m.is_dir())
+        .unwrap_or(false);
+    cache.insert(abs.to_owned(), is_dir);
+    is_dir
 }
 
 /// Validate an externally-configured file-server URL. Accepts http/https only;

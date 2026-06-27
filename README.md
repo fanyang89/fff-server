@@ -129,9 +129,12 @@ curl http://127.0.0.1:8787/api/health
 ### Notes on results
 
 - plocate's index stores **paths only** — no size/mtime/git metadata. Items
-  contain `name`, `relative_path`, `absolute_path`, and `type` (inferred from a
-  trailing `/` for directories). This matches the "filename and path only" use
-  case.
+  contain `name`, `relative_path`, `absolute_path`, and `type` (`"file"` or
+  `"directory"`). Since plocate does not tag directories in its output, `type`
+  is determined by `stat` at query time and memoized in an in-process
+  [moka](https://crates.io/crates/moka) cache that is invalidated on every
+  reindex, so it stays consistent with the index. This matches the "filename
+  and path only" use case.
 - `total_matched` is the number of entries plocate returned up to the requested
   cap (`offset + limit`), not an exact total over the whole index. `truncated`
   indicates more matches likely exist.
