@@ -1,5 +1,6 @@
 pub mod frontend;
 pub mod health;
+pub mod install;
 pub mod reindex;
 pub mod search;
 pub mod stats;
@@ -45,6 +46,8 @@ pub fn router(state: AppState) -> Router {
         .merge(api)
         .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", ApiDoc::openapi()))
         .nest_service("/mcp", mcp_service)
+        .route("/install/skill.md", get(install::skill_md))
+        .route("/install.sh", get(install::install_sh))
         .fallback(frontend::frontend_fallback)
         .with_state(state)
 }
