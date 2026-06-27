@@ -146,6 +146,12 @@ impl AppState {
         if let Some(n) = limit {
             cmd.arg("-l").arg(n.to_string());
         }
+        // plocate's glob anchors a pattern at the start of the full path, so a
+        // bare `rust*json` could never match `/home/.../.rustc_info.json`.
+        // When the pattern is a glob (contains * ? [) but is not already
+        // wildcarded (`*`) or root-anchored (`/`), prepend `*` so it matches
+        // anywhere in the path — matching the intuition of "find by name".
+        let pattern = enrich_glob(pattern);
         cmd.arg("--").arg(pattern);
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
         let output = run_with_timeout(&mut cmd, self.search_timeout, "plocate").await?;
@@ -199,6 +205,23 @@ impl AppState {
         ReindexOutcome::Started
     }
 
+}
+
+/// plocate treats a pattern as a glob when it contains any of `*`, `?`, `[`.
+/// Its glob is matched against the full path and anchored at the start, so
+/// `rust*json` cannot match `/home/.../.rustc_info.json`. To make name-like
+/// globs behave as "match anywhere in the path", prepend a leading `*` unless
+/// the pattern already starts with `*` (already wildcarded) or `/`
+/// (explicit root anchor, e.g. `/etc/*.conf`).
+fn enrich_glob(pattern: &str) -> String {
+    const GLOB_META: &[char] = &['*', '?', '['];
+    if pattern.chars().next().is_some_and(|c| c == '*' || c == '/') {
+        return pattern.to_string();
+    }
+    if !pattern.contains(GLOB_META) {
+        return pattern.to_string();
+    }
+    format!("*{pattern}")
 }
 
 async fn run_updatedb(state: &AppState) -> Result<()> {
@@ -378,3 +401,41 @@ pub fn proc_status() -> io::Result<(u64, u32)> {
     }
     Ok((rss.unwrap_or(0).saturating_mul(1024), threads.unwrap_or(0)))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::enrich_glob;
+
+    #[test]
+    fn enrich_glob_prepends_star_for_name_glob() {
+        assert_eq!(enrich_glob("rust*json"), "*rust*json");
+        assert_eq!(enrich_glob("src/*.rs"), "*src/*.rs");
+        assert_eq!(enrich_glob("[Rr]eadme*"), "*[Rr]eadme*");
+        assert_eq!(enrich_glob("?.rs"), "*?.rs");
+    }
+
+    #[test]
+    fn enrich_glob_leaves_already_wildcarded_untouched() {
+        assert_eq!(enrich_glob("*.rs"), "*.rs");
+        assert_eq!(enrich_glob("**/2024/*.log"), "**/2024/*.log");
+        assert_eq!(enrich_glob("*rust*json"), "*rust*json");
+    }
+
+    #[test]
+    fn enrich_glob_leaves_root_anchored_untouched() {
+        assert_eq!(enrich_glob("/etc/*.conf"), "/etc/*.conf");
+        assert_eq!(enrich_glob("/rust*json"), "/rust*json");
+    }
+
+    #[test]
+    fn enrich_glob_leaves_plain_substring_untouched() {
+        // No glob metacharacters → plocate treats it as a substring; must not
+        // add a leading `*` (that would turn it into a glob and change
+        // semantics).
+        assert_eq!(enrich_glob("Cargo.toml"), "Cargo.toml");
+        assert_eq!(enrich_glob("config json"), "config json");
+        assert_eq!(enrich_glob(""), "");
+        assert_eq!(enrich_glob("*"), "*");
+    }
+}
+
