@@ -14,7 +14,8 @@ service (e.g. `dufs`).
 - Filename / path search via plocate’s trigram inverted index (sub-millisecond even at
   10M+ files)
 - On-disk index — restart is instant, no rescan
-- Periodic reindex via in-server interval + on-demand `POST /api/reindex`
+- Periodic reindex via systemd timer (calls `POST /api/reindex`) + on-demand
+  `POST /api/reindex`
 - Glob matching
 - Auto-generated OpenAPI 3.0 spec + Swagger UI
 - **mimalloc** global allocator
@@ -88,7 +89,6 @@ All flags have matching environment variables.
 | `--db-path` | `PLOCATE_SERVER_DB_PATH` | `$XDG_DATA_HOME/plocate-server/files.db` |
 | `--plocate-bin` | `PLOCATE_SERVER_PLOCATE_BIN` | `plocate` |
 | `--updatedb-bin` | `PLOCATE_SERVER_UPDATEDB_BIN` | `updatedb` |
-| `--reindex-interval-secs` | `PLOCATE_SERVER_REINDEX_INTERVAL_SECS` | `21600` (6h; `0` disables) |
 | `--max-results` | `PLOCATE_SERVER_MAX_RESULTS` | `100` |
 | `--max-concurrent-searches` | `PLOCATE_SERVER_MAX_CONCURRENT_SEARCHES` | `8` |
 | `--search-timeout-secs` | `PLOCATE_SERVER_SEARCH_TIMEOUT_SECS` | `10` |
@@ -236,8 +236,10 @@ sudo systemctl edit plocate-server
 #   ExecStart=
 #   ExecStart=/usr/local/bin/plocate-server \
 #       --base-path=/srv/files \
-#       --db-path=/var/lib/plocate-server/files.db \
-#       --reindex-interval-secs=21600
+#       --db-path=/var/lib/plocate-server/files.db
+#
+#   Periodic refresh: set up a timer/cron that POSTs to /api/reindex,
+#   or use the maintenance dialog in the web UI for manual refresh.
 
 sudo systemctl enable --now plocate-server
 ```

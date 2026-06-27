@@ -10,11 +10,13 @@ User=plocate-server
 Group=plocate-server
 
 # --- Override ExecStart via `systemctl edit plocate-server` for your tree ---
+# Periodic index refresh is NOT configured in this bare-deploy example.
+# Either set up a systemd timer / cron that POSTs to /api/reindex, or trigger
+# refresh manually via the maintenance dialog in the web UI.
 ExecStart=/usr/local/bin/plocate-server \
     --base-path=/srv/files \
     --bind=127.0.0.1:8787 \
-    --db-path=/var/lib/plocate-server/files.db \
-    --reindex-interval-secs=21600
+    --db-path=/var/lib/plocate-server/files.db
 # -----------------------------------------------------------------------
 
 Restart=on-failure

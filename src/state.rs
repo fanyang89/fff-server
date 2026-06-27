@@ -197,24 +197,6 @@ impl AppState {
         ReindexOutcome::Started
     }
 
-    /// Spawn the periodic reindex loop. Cancel by aborting the returned handle.
-    pub fn spawn_reindex_interval(self, interval_secs: u64) -> Option<tokio::task::JoinHandle<()>> {
-        if interval_secs == 0 {
-            return None;
-        }
-        let state = self.clone();
-        Some(tokio::spawn(async move {
-            let mut ticker = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
-            // Skip the immediate first tick (no churn at startup).
-            ticker.tick().await;
-            loop {
-                ticker.tick().await;
-                if !state.is_reindexing() {
-                    state.clone().trigger_reindex();
-                }
-            }
-        }))
-    }
 }
 
 async fn run_updatedb(state: &AppState) -> Result<()> {

@@ -30,14 +30,6 @@ pub struct Config {
     #[arg(long, env = "PLOCATE_SERVER_UPDATEDB_BIN", default_value = "updatedb")]
     pub updatedb_bin: String,
 
-    /// Seconds between automatic `updatedb` runs. 0 disables the interval.
-    #[arg(
-        long,
-        env = "PLOCATE_SERVER_REINDEX_INTERVAL_SECS",
-        default_value_t = 21600
-    )]
-    pub reindex_interval_secs: u64,
-
     /// Maximum results returned by a single search/glob call.
     #[arg(long, env = "PLOCATE_SERVER_MAX_RESULTS", default_value_t = 100)]
     pub max_results: usize,

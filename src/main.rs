@@ -43,11 +43,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tracing::info!("existing plocate database found — ready immediately");
     }
 
-    // Periodic reindex loop (no-op if interval is 0).
-    let _reindex_handle = state
-        .clone()
-        .spawn_reindex_interval(cfg.reindex_interval_secs);
-
     let listener = tokio::net::TcpListener::bind(&cfg.bind).await?;
     let addr = listener.local_addr()?;
     tracing::info!(%addr, swagger = format!("http://{addr}/swagger-ui"), "listening");

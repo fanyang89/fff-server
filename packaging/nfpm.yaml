@@ -17,18 +17,21 @@ license: "GPLv2+"
 # The bundle includes plocate (GPLv2+) and plocate-server (MIT); the combined
 # distribution is licensed under GPLv2+.
 
-# Runtime dependencies. Binaries are fully static (musl); the only requirements
-# are systemd (for the units) and a shadow-utiles equivalent (useradd in the
-# pre-install script). Package names differ per distro.
+# Runtime dependencies. Binaries are fully static (musl); requirements are
+# systemd (for the units), curl (the index-refresh timer POSTs to /api/reindex),
+# and a shadow-utils equivalent (useradd in the pre-install script). Package
+# names differ per distro.
 overrides:
   rpm:
     depends:
       - shadow-utils
       - systemd
+      - curl
   archlinux:
     depends:
       - shadow
       - systemd
+      - curl
 
 contents:
   # --- binaries (all fully static musl) ---

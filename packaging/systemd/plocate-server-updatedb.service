@@ -1,41 +1,18 @@
 [Unit]
-Description=Refresh the plocate-server index
-After=plocate-server.service
+Description=Refresh the plocate-server index (via the API)
 Wants=plocate-server.service
+After=plocate-server.service
 
 [Service]
 Type=oneshot
-User=plocate-server
-Group=plocate-server
 
-# All configuration (incl. PLOCATE_SERVER_BASE_PATH) comes from the shared env.
-EnvironmentFile=-/etc/plocate-server/plocate-server.env
+# Ask the running plocate-server to rebuild its index. The server is the sole
+# executor of updatedb (it owns the reindex lock, the stat cache invalidation,
+# and the last_run record), so routing the timer through the HTTP endpoint
+# guarantees the timer and the maintenance UI button can never race.
+ExecStart=/usr/bin/curl -fsS -X POST --max-time 30 http://127.0.0.1:8787/api/reindex
 
-# Rebuild the on-disk trigram index. ${...} expands from the env file.
-ExecStart=/usr/libexec/plocate-server/updatedb \
-    -U ${PLOCATE_SERVER_BASE_PATH} \
-    -o /var/lib/plocate-server/files.db \
-    --require-visibility no
+# Best-effort: if the server is down, the curl fails and the timer retries on
+# its next schedule. Nothing to harden here — no filesystem access, no caps.
 
-# Read the whole tree without root, at lowest priority so the foreground
-# service is never disturbed.
-AmbientCapabilities=CAP_DAC_READ_SEARCH
-CapabilityBoundingSet=CAP_DAC_READ_SEARCH
-Nice=19
-IOSchedulingClass=idle
-IOSchedulingPriority=7
-
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
 PrivateTmp=true
-PrivateNetwork=true
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-RestrictNamespaces=true
-LockPersonality=true
-RestrictRealtime=true
-RestrictSUIDSGID=true
-RemoveIPC=true
-ReadWritePaths=/var/lib/plocate-server
