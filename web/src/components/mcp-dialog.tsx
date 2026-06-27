@@ -1,6 +1,5 @@
 import { useState } from "react"
-import { Check, Copy, ExternalLink, Plug, Wrench } from "lucide-react"
-import { toast } from "sonner"
+import { ExternalLink, Plug, Wrench } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -37,18 +36,6 @@ const TOOLS = [
 
 export function McpDialog() {
   const [open, setOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(MCP_CONFIG)
-      setCopied(true)
-      toast.success("已复制配置")
-      setTimeout(() => setCopied(false), 1200)
-    } catch {
-      toast.error("复制失败")
-    }
-  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -68,22 +55,7 @@ export function McpDialog() {
 
         <div className="space-y-5">
           <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">客户端配置</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 px-2"
-                onClick={copy}
-              >
-                {copied ? (
-                  <Check className="size-3.5" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-                复制
-              </Button>
-            </div>
+            <span className="text-sm font-medium">客户端配置</span>
             <pre className="overflow-x-auto rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
               {MCP_CONFIG}
             </pre>
