@@ -152,9 +152,13 @@ impl AppState {
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
         let output = run_with_timeout(&mut cmd, self.search_timeout, "plocate").await?;
         if !output.status.success() {
-            // Non-zero usually means "no matches" for some plocate versions; treat empty.
             let stderr = String::from_utf8_lossy(&output.stderr);
-            if stderr.contains("No such file") || stderr.contains("cannot stat") {
+            // plocate exits 1 both for "no matches" and for genuine errors
+            // (see plocate(1) EXIT STATUS). Disambiguate by stderr: an empty
+            // stderr means no matches, so return an empty result rather than
+            // surfacing a spurious error. Any real error (missing db, bad
+            // flag, permission, ...) writes to stderr and is propagated.
+            if stderr.trim().is_empty() {
                 return Ok(Vec::new());
             }
             return Err(AppError::Internal(format!(
