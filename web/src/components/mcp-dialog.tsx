@@ -56,7 +56,7 @@ export function McpDialog() {
         <div className="space-y-5">
           <section className="space-y-2">
             <span className="text-sm font-medium">客户端配置</span>
-            <pre className="overflow-x-auto rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
+            <pre className="select-text overflow-hidden whitespace-pre rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
               {MCP_CONFIG}
             </pre>
             <p className="text-muted-foreground text-xs">
