@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Code } from "lucide-react"
+import { Code, Globe } from "lucide-react"
 import { Footer } from "@/components/footer"
 import { MaintenanceDialog } from "@/components/maintenance-dialog"
 import { McpDialog } from "@/components/mcp-dialog"
@@ -23,6 +23,14 @@ export default function App() {
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">plocate-web</h1>
         <div className="flex items-center gap-2">
+          {fileServer.url && (
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <a href={fileServer.url} target="_blank" rel="noreferrer">
+                <Globe className="size-4" />
+                文件服务主站
+              </a>
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm" className="gap-2">
             <a href="/swagger-ui" target="_blank" rel="noreferrer">
               <Code className="size-4" />
