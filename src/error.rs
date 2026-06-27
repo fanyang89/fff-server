@@ -14,6 +14,9 @@ pub enum AppError {
     #[error("not found: {0}")]
     NotFound(String),
 
+    #[error("timeout: {0}")]
+    Timeout(String),
+
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -25,6 +28,7 @@ impl IntoResponse for AppError {
         let status = match &self {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
+            AppError::Timeout(_) => StatusCode::GATEWAY_TIMEOUT,
             AppError::Io(_) | AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let body = Json(json!({ "error": self.to_string() }));

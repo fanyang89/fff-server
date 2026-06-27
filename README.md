@@ -89,6 +89,9 @@ All flags have matching environment variables.
 | `--updatedb-bin`            | `PLOCATE_SERVER_UPDATEDB_BIN`            | `updatedb`                           |
 | `--reindex-interval-secs`   | `PLOCATE_SERVER_REINDEX_INTERVAL_SECS`   | `21600` (6h; `0` disables)           |
 | `--max-results`             | `PLOCATE_SERVER_MAX_RESULTS`             | `100`                                |
+| `--max-concurrent-searches` | `PLOCATE_SERVER_MAX_CONCURRENT_SEARCHES` | `8`                                  |
+| `--search-timeout-secs`     | `PLOCATE_SERVER_SEARCH_TIMEOUT_SECS`     | `10`                                 |
+| `--updatedb-timeout-secs`   | `PLOCATE_SERVER_UPDATEDB_TIMEOUT_SECS`   | `3600`                               |
 
 ## API
 

@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use tokio::process::Command;
+use tokio::sync::Semaphore;
 
 use crate::config::Config;
 use crate::dto::{FileItemDto, SearchResponse};
@@ -22,6 +23,9 @@ pub struct AppState {
     pub max_results: usize,
     reindexing: Arc<AtomicBool>,
     last_run: Arc<Mutex<Option<ReindexRecord>>>,
+    search_concurrency: Arc<Semaphore>,
+    search_timeout: Duration,
+    updatedb_timeout: Duration,
 }
 
 #[derive(Clone, Debug)]
@@ -55,6 +59,9 @@ impl AppState {
             max_results: cfg.max_results,
             reindexing: Arc::new(AtomicBool::new(false)),
             last_run: Arc::new(Mutex::new(None)),
+            search_concurrency: Arc::new(Semaphore::new(cfg.max_concurrent_searches.max(1))),
+            search_timeout: Duration::from_secs(cfg.search_timeout_secs),
+            updatedb_timeout: Duration::from_secs(cfg.updatedb_timeout_secs),
         })
     }
 
@@ -84,6 +91,12 @@ impl AppState {
             return Ok(SearchResponse::empty());
         }
         let cap = offset.saturating_add(limit);
+        // Bound concurrent plocate children; backpressure instead of fork-bomb.
+        let _permit = self
+            .search_concurrency
+            .acquire()
+            .await
+            .map_err(|_| AppError::Internal("search concurrency semaphore closed".into()))?;
         let raw = self
             .run_plocate(query, Some(cap), case_insensitive, basename_only)
             .await?;
@@ -122,9 +135,7 @@ impl AppState {
         }
         cmd.arg("--").arg(pattern);
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-        let output = cmd.output().await.map_err(|e| {
-            AppError::Internal(format!("failed to run plocate: {e} (is it installed?)"))
-        })?;
+        let output = run_with_timeout(&mut cmd, self.search_timeout, "plocate").await?;
         if !output.status.success() {
             // Non-zero usually means "no matches" for some plocate versions; treat empty.
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -198,9 +209,7 @@ async fn run_updatedb(state: &AppState) -> Result<()> {
         .arg("no")
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
-    let output = cmd.output().await.map_err(|e| {
-        AppError::Internal(format!("failed to run updatedb: {e} (is it installed?)"))
-    })?;
+    let output = run_with_timeout(&mut cmd, state.updatedb_timeout, "updatedb").await?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(AppError::Internal(format!(
@@ -209,6 +218,54 @@ async fn run_updatedb(state: &AppState) -> Result<()> {
         )));
     }
     Ok(())
+}
+
+/// Spawn a command, wait for it with a timeout, and kill it if it exceeds the
+/// deadline. Returns the captured output on success, or `Timeout` on expiry.
+async fn run_with_timeout(
+    cmd: &mut Command,
+    timeout: Duration,
+    label: &str,
+) -> Result<std::process::Output> {
+    use tokio::io::AsyncReadExt;
+    let mut child = cmd.spawn().map_err(|e| {
+        AppError::Internal(format!("failed to run {label}: {e} (is it installed?)"))
+    })?;
+    // Take the pipes up front so we can drain them concurrently with wait(),
+    // avoiding a deadlock when output exceeds the pipe buffer.
+    let mut out = child.stdout.take();
+    let mut err = child.stderr.take();
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+
+    let wait = child.wait();
+    let drain_out = async {
+        if let Some(s) = out.as_mut() {
+            let _ = s.read_to_end(&mut stdout).await;
+        }
+    };
+    let drain_err = async {
+        if let Some(s) = err.as_mut() {
+            let _ = s.read_to_end(&mut stderr).await;
+        }
+    };
+
+    match tokio::time::timeout(timeout, async { tokio::join!(wait, drain_out, drain_err) }).await {
+        Ok((status, _, _)) => Ok(std::process::Output {
+            status: status.map_err(|e| AppError::Internal(format!("{label}: {e}")))?,
+            stdout,
+            stderr,
+        }),
+        Err(_) => {
+            // Timed out — kill and reap the child to avoid leaking processes.
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            Err(AppError::Timeout(format!(
+                "{label} exceeded {}s",
+                timeout.as_secs()
+            )))
+        }
+    }
 }
 
 /// Parse NUL-separated plocate output into DTO items.

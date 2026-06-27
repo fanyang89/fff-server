@@ -41,6 +41,29 @@ pub struct Config {
     /// Maximum results returned by a single search/glob call.
     #[arg(long, env = "PLOCATE_SERVER_MAX_RESULTS", default_value_t = 100)]
     pub max_results: usize,
+
+    /// Maximum concurrent plocate query processes. Excess requests wait
+    /// (backpressure) rather than spawning unbounded children.
+    #[arg(
+        long,
+        env = "PLOCATE_SERVER_MAX_CONCURRENT_SEARCHES",
+        default_value_t = 8
+    )]
+    pub max_concurrent_searches: usize,
+
+    /// Per-query timeout (seconds). A plocate run exceeding this is killed and
+    /// reported as a 504.
+    #[arg(long, env = "PLOCATE_SERVER_SEARCH_TIMEOUT_SECS", default_value_t = 10)]
+    pub search_timeout_secs: u64,
+
+    /// Per-reindex timeout (seconds). An updatedb run exceeding this is killed.
+    /// Generous by default to accommodate very large trees (10M+ files).
+    #[arg(
+        long,
+        env = "PLOCATE_SERVER_UPDATEDB_TIMEOUT_SECS",
+        default_value_t = 3600
+    )]
+    pub updatedb_timeout_secs: u64,
 }
 
 impl Config {

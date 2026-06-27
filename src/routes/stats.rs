@@ -42,6 +42,6 @@ pub async fn stats(State(state): State<AppState>) -> Result<Json<StatsResponse>>
             db_mtime_unix,
             reindexing,
         },
-        last_reindex: last_reindex,
+        last_reindex,
     }))
 }

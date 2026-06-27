@@ -4,8 +4,14 @@ use serde::Deserialize;
 use utoipa::IntoParams;
 
 use crate::dto::SearchResponse;
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use crate::state::AppState;
+
+/// Maximum accepted query/pattern length (characters).
+const MAX_QUERY_LEN: usize = 256;
+/// Maximum accepted pagination offset (deep pagination is expensive and
+/// meaningless for this use case).
+const MAX_OFFSET: usize = 10000;
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct SearchParams {
@@ -40,8 +46,9 @@ pub async fn search(
     State(state): State<AppState>,
     Query(params): Query<SearchParams>,
 ) -> Result<Json<SearchResponse>> {
+    validate_query(&params.q)?;
     let limit = clamp_limit(params.limit, state.max_results);
-    let offset = params.offset.unwrap_or(0);
+    let offset = validate_offset(params.offset)?;
     let case_insensitive = params.case.unwrap_or(true);
     let basename_only = matches!(
         params.scope.as_deref(),
@@ -81,8 +88,9 @@ pub async fn glob(
     State(state): State<AppState>,
     Query(params): Query<GlobParams>,
 ) -> Result<Json<SearchResponse>> {
+    validate_query(&params.pattern)?;
     let limit = clamp_limit(params.limit, state.max_results);
-    let offset = params.offset.unwrap_or(0);
+    let offset = validate_offset(params.offset)?;
     let case_insensitive = params.case.unwrap_or(true);
     let resp = state
         .search(&params.pattern, limit, offset, case_insensitive, false)
@@ -92,4 +100,23 @@ pub async fn glob(
 
 fn clamp_limit(req: Option<usize>, max: usize) -> usize {
     req.unwrap_or(max).clamp(1, max.max(1))
+}
+
+fn validate_offset(req: Option<usize>) -> Result<usize> {
+    match req {
+        Some(n) if n > MAX_OFFSET => Err(AppError::BadRequest(format!(
+            "offset too large (max {MAX_OFFSET})"
+        ))),
+        Some(n) => Ok(n),
+        None => Ok(0),
+    }
+}
+
+fn validate_query(q: &str) -> Result<()> {
+    if q.chars().count() > MAX_QUERY_LEN {
+        return Err(AppError::BadRequest(format!(
+            "query too long (max {MAX_QUERY_LEN} chars)"
+        )));
+    }
+    Ok(())
 }

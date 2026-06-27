@@ -18,6 +18,9 @@ Environment=PLOCATE_SERVER_PLOCATE_BIN=/usr/libexec/plocate-server/plocate
 Environment=PLOCATE_SERVER_UPDATEDB_BIN=/usr/libexec/plocate-server/updatedb
 Environment=PLOCATE_SERVER_REINDEX_INTERVAL_SECS=0
 Environment=PLOCATE_SERVER_MAX_RESULTS=100
+Environment=PLOCATE_SERVER_MAX_CONCURRENT_SEARCHES=8
+Environment=PLOCATE_SERVER_SEARCH_TIMEOUT_SECS=10
+Environment=PLOCATE_SERVER_UPDATEDB_TIMEOUT_SECS=3600
 EnvironmentFile=-/etc/plocate-server/plocate-server.env
 
 ExecStart=/usr/bin/plocate-server
