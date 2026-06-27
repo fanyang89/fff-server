@@ -1,0 +1,62 @@
+[Unit]
+Description=fff-server (fff file-search REST API)
+Documentation=https://github.com/dmtrKovalenko/fff
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fff-server
+Group=fff-server
+
+# --- Override these via `systemctl edit fff-server` for your environment ---
+ExecStart=/usr/local/bin/fff-server \
+    --base-path=/srv/repo \
+    --bind=127.0.0.1:8787 \
+    --db-dir=/var/lib/fff-server \
+    --ai-mode=true \
+    --watch=true
+# ---------------------------------------------------------------------------
+
+Restart=on-failure
+RestartSec=3
+
+# ===== Memory: hard cap 4G (cgroup v2 MemoryMax) =====
+MemoryMax=4G
+# Soft line: kernel starts reclaiming/throttling before the hard limit,
+# reducing the chance of a direct OOM kill.
+MemoryHigh=3500M
+
+# ===== CPU: yield under contention, no hard quota =====
+# dufs (default weight 100) wins CPU time when busy; fff-server still
+# bursts to all cores when dufs is idle. No CPUQuota => no wasted capacity.
+CPUWeight=20
+
+# ===== Scheduler priority + disk IO: always defer to dufs =====
+# These two lines are the most effective "don't bother the foreground service"
+# knobs — they apply globally regardless of cgroup slice topology.
+Nice=19
+IOSchedulingClass=idle
+IOSchedulingPriority=7
+
+# ===== Basic hardening =====
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+CapabilityBoundingSet=
+# Only the db-dir needs to be writable. The indexed base-path is read-only.
+# If your base-path lives under /home or another protected tree, append it
+# to ReadWritePaths (or relax ProtectSystem to 'full' / 'true').
+ReadWritePaths=/var/lib/fff-server
+
+[Install]
+WantedBy=multi-user.target

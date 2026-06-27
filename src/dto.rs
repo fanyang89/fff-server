@@ -81,3 +81,37 @@ pub struct TrackResponse {
 pub struct HistoryResponse {
     pub query: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct StatsProcess {
+    pub pid: u32,
+    /// Resident set size in bytes.
+    pub rss_bytes: u64,
+    pub threads: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct StatsIndex {
+    pub live_file_count: usize,
+    pub total_files_seen: usize,
+    pub dir_count: usize,
+    pub scanning: bool,
+    pub watcher_ready: bool,
+    pub warmup_complete: bool,
+    pub mode: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct StatsCache {
+    pub cached_files: usize,
+    pub cached_bytes: u64,
+    pub max_files: usize,
+    pub max_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct StatsResponse {
+    pub process: StatsProcess,
+    pub index: StatsIndex,
+    pub cache: StatsCache,
+}

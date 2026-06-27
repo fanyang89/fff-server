@@ -18,6 +18,7 @@ use utoipa::OpenApi;
         crate::routes::lifecycle::rescan,
         crate::routes::lifecycle::refresh_git,
         crate::routes::lifecycle::base_path,
+        crate::routes::stats::stats,
     ),
     components(schemas(
         crate::dto::FileItemDto,
@@ -30,6 +31,10 @@ use utoipa::OpenApi;
         crate::dto::TrackRequest,
         crate::dto::TrackResponse,
         crate::dto::HistoryResponse,
+        crate::dto::StatsProcess,
+        crate::dto::StatsIndex,
+        crate::dto::StatsCache,
+        crate::dto::StatsResponse,
     )),
     tags(
         (name = "search", description = "Fuzzy / glob file search"),

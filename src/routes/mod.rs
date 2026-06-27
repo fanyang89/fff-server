@@ -1,6 +1,7 @@
 pub mod history;
 pub mod lifecycle;
 pub mod search;
+pub mod stats;
 
 use axum::routing::{get, post};
 use axum::Router;
@@ -20,7 +21,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/scan-progress", get(lifecycle::scan_progress))
         .route("/api/rescan", post(lifecycle::rescan))
         .route("/api/refresh-git", post(lifecycle::refresh_git))
-        .route("/api/base-path", get(lifecycle::base_path));
+        .route("/api/base-path", get(lifecycle::base_path))
+        .route("/api/stats", get(stats::stats));
 
     Router::new()
         .merge(api)

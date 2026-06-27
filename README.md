@@ -56,6 +56,7 @@ All flags have matching environment variables.
 | POST   | `/api/rescan`       | Trigger a full rescan                    |
 | POST   | `/api/refresh-git`  | Refresh cached git statuses              |
 | GET    | `/api/base-path`    | Currently indexed root                   |
+| GET    | `/api/stats`        | Runtime: RSS / threads / index / cache   |
 
 ### Examples
 
@@ -95,6 +96,75 @@ for the algorithmic details.
 
 Search calls are dispatched onto `tokio::task::spawn_blocking` since the fff
 engine is CPU-bound (rayon) and must not block the async reactor.
+
+## Deployment & resource control
+
+fff keeps the file index resident in RAM, so on a shared host it can compete
+with other services for memory and CPU. A systemd unit with cgroup v2 limits
+is the recommended way to keep fff-server from affecting the foreground
+service (e.g. `dufs`).
+
+### Install
+
+```bash
+# 1. Build & install the binary
+cargo build --release
+sudo install -m 0755 target/release/fff-server /usr/local/bin/fff-server
+
+# 2. Create a dedicated unprivileged user
+sudo useradd -r -s /usr/sbin/nologin -d /var/lib/fff-server -M fff-server
+sudo install -d -o fff-server -g fff-server /var/lib/fff-server
+
+# 3. Install the unit (shipped at deploy/fff-server.service)
+sudo install -m 0644 deploy/fff-server.service /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# 4. Point it at your repo (override ExecStart without editing the file)
+sudo systemctl edit fff-server
+#   in the editor, drop a drop-in like:
+#   [Service]
+#   ExecStart=
+#   ExecStart=/usr/local/bin/fff-server \
+#       --base-path=/path/to/your/repo \
+#       --bind=127.0.0.1:8787 \
+#       --db-dir=/var/lib/fff-server
+
+sudo systemctl enable --now fff-server
+```
+
+### Resource limits
+
+The shipped unit applies these cgroup v2 constraints (edit to taste):
+
+| Directive             | Value      | Effect                                                     |
+|-----------------------|------------|------------------------------------------------------------|
+| `MemoryMax`           | `4G`       | Hard RSS ceiling; OOM-killed + restarted if exceeded.      |
+| `MemoryHigh`          | `3500M`    | Soft line; kernel reclaims/throttles before the hard cap.  |
+| `CPUWeight`           | `20`       | Low weight vs the default 100 — yields CPU under load.     |
+| `Nice`                | `19`       | Lowest static priority.                                    |
+| `IOSchedulingClass`   | `idle`     | Disk IO only served when no one else wants it.             |
+
+Together `Nice=19` + `IOSchedulingClass=idle` are the strongest guarantees
+that a busy foreground service is never starved, regardless of how the
+services are sliced. `CPUWeight` adds proportional fairness when they share
+a slice. There is **no `CPUQuota`** — fff bursts to all cores when the
+foreground service is idle, so no capacity is wasted. Add `CPUQuota=300%`
+if you want a hard 3-core ceiling instead.
+
+### Observe
+
+```bash
+# Live runtime stats (RSS, threads, index size, cache use)
+curl http://127.0.0.1:8787/api/stats | jq
+
+# cgroup pressure / current usage
+systemctl status fff-server
+systemd-cgtop -1 -n 1
+```
+
+If `rss_bytes` trends toward `MemoryMax`, the indexed repo is large — either
+raise the cap, or keep `--content-indexing` / `--mmap-cache` off (the default)
+since those drive the bulk of optional memory.
 
 ## License
 
