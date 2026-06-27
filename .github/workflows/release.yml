@@ -1,0 +1,95 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: static musl binary + packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: musl-${{ hashFiles('Cargo.lock') }}
+
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.16.1
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - uses: actions/setup-go@v5
+        with:
+          cache: false
+
+      - name: Install cargo-zigbuild
+        run: cargo install --locked cargo-zigbuild
+
+      - name: Install task + nfpm
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+      - name: Build musl binary (embeds web/dist)
+        run: task build
+
+      - name: Build vendored plocate + updatedb
+        run: task plocate
+
+      - name: Build RPM + pacman packages
+        run: task packages
+
+      - name: Stage release artifacts
+        run: |
+          mkdir -p staging
+          cp target/x86_64-unknown-linux-musl/release/plocate-server \
+             staging/plocate-server-x86_64-musl
+          cp dist/plocate-server-*.rpm staging/ 2>/dev/null || true
+          cp dist/plocate-server-*.pkg.tar.* staging/ 2>/dev/null || true
+          ls -la staging/
+
+      - name: Verify binary is statically linked
+        run: |
+          file staging/plocate-server-x86_64-musl
+          ldd staging/plocate-server-x86_64-musl 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plocate-server-artifacts
+          path: staging/*
+          retention-days: 14
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            staging/plocate-server-x86_64-musl
+            staging/plocate-server-*.rpm
+            staging/plocate-server-*.pkg.tar.*
+          fail_on_unmatched_files: true
