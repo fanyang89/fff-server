@@ -165,6 +165,47 @@ the server process holds **no index in RAM** — its footprint is just the HTTP
 runtime (~7 MB RSS). This is what makes it safe to run alongside a busy file
 server.
 
+## MCP (Model Context Protocol)
+
+The server also speaks MCP over Streamable HTTP at `POST /mcp`, so AI agents
+can search the tree directly. It exposes two tools:
+
+| Tool           | Arguments                                                        | Returns                                  |
+|----------------|------------------------------------------------------------------|------------------------------------------|
+| `search_files` | `query`, `limit?`, `offset?`, `case_insensitive?`, `scope?`      | matching relative paths, one per line    |
+| `glob`         | `pattern`, `limit?`, `offset?`, `case_insensitive?`              | matching relative paths, one per line    |
+
+`/mcp` is **stateless** — each JSON-RPC request is self-contained, no session
+handshake required. It shares the same engine, concurrency cap, timeouts, and
+input limits as the REST API.
+
+### Agent configuration (opencode)
+
+```jsonc
+// opencode.json — "mcp" section
+{
+  "mcp": {
+    "plocate-server": {
+      "type": "http",
+      "url": "http://127.0.0.1:8787/mcp"
+    }
+  }
+}
+```
+
+### Raw usage
+
+```bash
+curl -s http://127.0.0.1:8787/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+       "params":{"name":"search_files","arguments":{"query":"invoice"}}}'
+```
+
+The `/mcp` endpoint sits behind the same reverse proxy / auth boundary as the
+REST API — point the agent at `https://your-host/mcp`.
+
 ## Deployment & resource control
 
 ### Install

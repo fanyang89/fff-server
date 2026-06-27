@@ -4,14 +4,9 @@ use serde::Deserialize;
 use utoipa::IntoParams;
 
 use crate::dto::SearchResponse;
-use crate::error::{AppError, Result};
+use crate::error::Result;
+use crate::limits::{validate_offset, validate_query};
 use crate::state::AppState;
-
-/// Maximum accepted query/pattern length (characters).
-const MAX_QUERY_LEN: usize = 256;
-/// Maximum accepted pagination offset (deep pagination is expensive and
-/// meaningless for this use case).
-const MAX_OFFSET: usize = 10000;
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct SearchParams {
@@ -39,6 +34,7 @@ pub struct SearchParams {
     params(SearchParams),
     responses(
         (status = 200, description = "Search results", body = SearchResponse),
+        (status = 400, description = "Bad request", body = serde_json::Value),
         (status = 500, description = "Internal error", body = serde_json::Value),
     )
 )]
@@ -81,6 +77,7 @@ pub struct GlobParams {
     params(GlobParams),
     responses(
         (status = 200, description = "Glob results", body = SearchResponse),
+        (status = 400, description = "Bad request", body = serde_json::Value),
         (status = 500, description = "Internal error", body = serde_json::Value),
     )
 )]
@@ -100,23 +97,4 @@ pub async fn glob(
 
 fn clamp_limit(req: Option<usize>, max: usize) -> usize {
     req.unwrap_or(max).clamp(1, max.max(1))
-}
-
-fn validate_offset(req: Option<usize>) -> Result<usize> {
-    match req {
-        Some(n) if n > MAX_OFFSET => Err(AppError::BadRequest(format!(
-            "offset too large (max {MAX_OFFSET})"
-        ))),
-        Some(n) => Ok(n),
-        None => Ok(0),
-    }
-}
-
-fn validate_query(q: &str) -> Result<()> {
-    if q.chars().count() > MAX_QUERY_LEN {
-        return Err(AppError::BadRequest(format!(
-            "query too long (max {MAX_QUERY_LEN} chars)"
-        )));
-    }
-    Ok(())
 }
