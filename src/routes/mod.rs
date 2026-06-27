@@ -22,6 +22,7 @@ pub fn router(state: AppState) -> Router {
     let api = Router::new()
         .route("/api/search", get(search::search))
         .route("/api/glob", get(search::glob))
+        .route("/api/fuzzy", get(search::fuzzy))
         .route("/api/health", get(health::health))
         .route("/api/stats", get(stats::stats))
         .route("/api/reindex", post(reindex::reindex))

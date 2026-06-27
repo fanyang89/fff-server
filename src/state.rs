@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -10,6 +11,9 @@ use tokio::process::Command;
 use tokio::sync::Semaphore;
 
 use moka::sync::Cache;
+
+use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Matcher, Utf32Str};
 
 use crate::config::Config;
 use crate::dto::{FileItemDto, SearchResponse};
@@ -41,6 +45,12 @@ pub struct AppState {
 /// memory near 10 MB. Normal use stays far below (only searched paths enter,
 /// and the cache is cleared on every reindex).
 const STAT_CACHE_CAPACITY: u64 = 100_000;
+
+/// Upper bound on the candidate set fed to the nucleo fuzzy ranker. plocate
+/// recalls candidates with multi-pattern AND semantics; this cap keeps the
+/// ranking pass (and the per-path stat fan-out) bounded. The final response
+/// is still limited by the client's `limit`.
+const FUZZY_CANDIDATE_CAP: usize = 1000;
 
 #[derive(Clone, Debug)]
 pub struct ReindexRecord {
@@ -128,6 +138,108 @@ impl AppState {
         })
     }
 
+    /// Fuzzy search: recall candidates via plocate with multi-pattern AND
+    /// semantics (one pattern per whitespace-separated token), then rank them
+    /// with the nucleo fuzzy matcher (fzf-style scoring). Each result carries
+    /// a `score`; results are ordered by descending score.
+    ///
+    /// This gives "search engine"-style multi-keyword matching: a query like
+    /// `zookeeper rpm oe1` matches paths containing all three substrings, with
+    /// better-matching paths (contiguous, prefix/word-boundary aligned) ranked
+    /// first.
+    pub async fn search_fuzzy(
+        &self,
+        query: &str,
+        limit: usize,
+        offset: usize,
+        case_insensitive: bool,
+    ) -> Result<SearchResponse> {
+        if !self.db_exists() {
+            return Ok(SearchResponse::empty());
+        }
+        // Split into AND tokens; empty query → empty result.
+        let tokens: Vec<&str> = query.split_whitespace().collect();
+        if tokens.is_empty() {
+            return Ok(SearchResponse::empty());
+        }
+        let _permit = self
+            .search_concurrency
+            .acquire()
+            .await
+            .map_err(|_| AppError::Internal("search concurrency semaphore closed".into()))?;
+        let raw = self
+            .run_plocate_multi(&tokens, FUZZY_CANDIDATE_CAP, case_insensitive)
+            .await?;
+        let items = parse_paths(&raw, &self.base_path, &self.stat_cache);
+        let truncated = items.len() >= FUZZY_CANDIDATE_CAP;
+        // Rank with nucleo. match_paths() tunes scoring for path-like input
+        // (prefers prefix/segment matches over mid-word matches).
+        let mut matcher = Matcher::new(nucleo_matcher::Config::DEFAULT.match_paths());
+        let case = if case_insensitive {
+            CaseMatching::Ignore
+        } else {
+            CaseMatching::Respect
+        };
+        let pattern = Pattern::parse(query, case, Normalization::Smart);
+        let mut scored: Vec<(u32, FileItemDto)> = items
+            .into_iter()
+            .filter_map(|mut it| {
+                let haystack = Utf32Str::Ascii(it.relative_path.as_bytes());
+                pattern.score(haystack, &mut matcher).map(|s| {
+                    it.score = Some(s);
+                    (s, it)
+                })
+            })
+            .collect();
+        // Sort by score descending; stable, so ties keep plocate's order.
+        scored.sort_by_key(|(s, _)| Reverse(*s));
+        let total_matched = scored.len();
+        let paged: Vec<FileItemDto> = scored
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .map(|(_, it)| it)
+            .collect();
+        Ok(SearchResponse {
+            total_matched,
+            truncated,
+            items: paged,
+        })
+    }
+
+    /// Run plocate with multiple position arguments (AND semantics — a path
+    /// must match every pattern). Output is NUL-separated, limited to `limit`.
+    async fn run_plocate_multi(
+        &self,
+        patterns: &[&str],
+        limit: usize,
+        case_insensitive: bool,
+    ) -> Result<Vec<u8>> {
+        let mut cmd = Command::new(&*self.plocate_bin);
+        cmd.arg("-d").arg(&*self.db_path).arg("-N").arg("-0");
+        if case_insensitive {
+            cmd.arg("-i");
+        }
+        cmd.arg("-l").arg(limit.to_string());
+        cmd.arg("--");
+        for p in patterns {
+            cmd.arg(enrich_glob(p));
+        }
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let output = run_with_timeout(&mut cmd, self.search_timeout, "plocate").await?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if stderr.trim().is_empty() {
+                return Ok(Vec::new());
+            }
+            return Err(AppError::Internal(format!(
+                "plocate failed ({}): {stderr}",
+                output.status
+            )));
+        }
+        Ok(output.stdout)
+    }
+
     async fn run_plocate(
         &self,
         pattern: &str,
@@ -204,7 +316,6 @@ impl AppState {
         });
         ReindexOutcome::Started
     }
-
 }
 
 /// plocate treats a pattern as a glob when it contains any of `*`, `?`, `[`.
@@ -332,6 +443,7 @@ fn build_item(abs: &str, base_path: &Path, stat_cache: &Cache<String, bool>) -> 
         name,
         relative_path: relative,
         absolute_path: abs_trimmed.into(),
+        score: None,
     }
 }
 
@@ -405,6 +517,10 @@ pub fn proc_status() -> io::Result<(u64, u32)> {
 #[cfg(test)]
 mod tests {
     use super::enrich_glob;
+    use nucleo_matcher::Matcher;
+    use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
+    use nucleo_matcher::{Config, Utf32Str};
+    use std::cmp::Reverse;
 
     #[test]
     fn enrich_glob_prepends_star_for_name_glob() {
@@ -437,5 +553,38 @@ mod tests {
         assert_eq!(enrich_glob(""), "");
         assert_eq!(enrich_glob("*"), "*");
     }
-}
 
+    /// Smoke-test the fuzzy ranking used by `search_fuzzy`: a multi-token
+    /// query must match paths containing all tokens, and paths with tighter
+    /// (prefix/contiguous) alignment must outrank scattered matches.
+    #[test]
+    fn fuzzy_ranks_multi_token_query() {
+        let paths = [
+            "zookeeper/rpm/oe1/release.rpm", // all three, aligned
+            "oe1/zookeeper/build.rpm",       // all three, reordered
+            "zookeeper/rpm/other.tar",       // missing oe1
+            "docs/zookeeper.md",             // only zookeeper
+        ];
+        let mut matcher = Matcher::new(Config::DEFAULT.match_paths());
+        let pattern = Pattern::parse(
+            "zookeeper rpm oe1",
+            CaseMatching::Ignore,
+            Normalization::Smart,
+        );
+        let mut scored: Vec<(Option<u32>, &str)> = paths
+            .iter()
+            .map(|p| {
+                (
+                    pattern.score(Utf32Str::Ascii(p.as_bytes()), &mut matcher),
+                    *p,
+                )
+            })
+            .collect();
+        scored.sort_by_key(|(s, _)| Reverse(*s));
+        // The two paths containing all three tokens rank above the partials.
+        assert_eq!(scored[0].1, "zookeeper/rpm/oe1/release.rpm");
+        assert_eq!(scored[1].1, "oe1/zookeeper/build.rpm");
+        // Partials do not match (score is None) and sink to the bottom.
+        assert!(scored[2].0.is_none());
+    }
+}

@@ -63,6 +63,23 @@ pub struct GlobParams {
     pub case_insensitive: bool,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct FuzzySearchParams {
+    /// Query string. Whitespace-separated tokens are matched with AND
+    /// semantics (every token must appear in the path); results are ranked
+    /// by fzf-style fuzzy relevance.
+    pub query: String,
+    /// Maximum results (default 100, server-capped).
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// Pagination offset (0-based, max 10000).
+    #[serde(default)]
+    pub offset: Option<usize>,
+    /// Case-insensitive match (default true).
+    #[serde(default = "default_true")]
+    pub case_insensitive: bool,
+}
+
 #[tool_router]
 impl PlocateMcpHandler {
     #[tool(
@@ -128,6 +145,37 @@ impl PlocateMcpHandler {
                 &resp,
             ))])),
             Err(e) => Ok(err_text(&format!("glob failed: {e}"))),
+        }
+    }
+
+    #[tool(
+        name = "fuzzy_search",
+        description = "Fuzzy multi-keyword search over indexed file paths. Whitespace-separated tokens are AND-ed (every token must appear), then ranked by fzf-style relevance (nucleo). Best for queries like 'zookeeper rpm oe1' where substring search would return nothing. Returns matching relative paths ranked by relevance, one per line."
+    )]
+    async fn fuzzy_search(
+        &self,
+        Parameters(p): Parameters<FuzzySearchParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        if let Err(e) = validate_query(&p.query) {
+            return Ok(err_text(&e.to_string()));
+        }
+        let offset = match validate_offset(p.offset) {
+            Ok(n) => n,
+            Err(e) => return Ok(err_text(&e.to_string())),
+        };
+        let limit = p
+            .limit
+            .unwrap_or(self.state.max_results)
+            .clamp(1, self.state.max_results.max(1));
+        match self
+            .state
+            .search_fuzzy(&p.query, limit, offset, p.case_insensitive)
+            .await
+        {
+            Ok(resp) => Ok(CallToolResult::success(vec![Content::text(format_search(
+                &resp,
+            ))])),
+            Err(e) => Ok(err_text(&format!("fuzzy search failed: {e}"))),
         }
     }
 }

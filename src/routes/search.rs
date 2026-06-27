@@ -95,6 +95,47 @@ pub async fn glob(
     Ok(Json(resp))
 }
 
+#[derive(Debug, Deserialize, IntoParams)]
+pub struct FuzzyParams {
+    /// Query string. Whitespace-separated tokens are matched with AND
+    /// semantics (every token must appear in the path); results are ranked by
+    /// fzf-style fuzzy relevance via nucleo.
+    pub q: String,
+    #[param(default = 100)]
+    pub limit: Option<usize>,
+    #[param(default = 0)]
+    pub offset: Option<usize>,
+    /// Case-insensitive match (default true).
+    #[param(default = true)]
+    pub case: Option<bool>,
+}
+
+/// Fuzzy multi-keyword search with relevance ranking.
+#[utoipa::path(
+    get,
+    path = "/api/fuzzy",
+    tag = "search",
+    params(FuzzyParams),
+    responses(
+        (status = 200, description = "Ranked search results", body = SearchResponse),
+        (status = 400, description = "Bad request", body = serde_json::Value),
+        (status = 500, description = "Internal error", body = serde_json::Value),
+    )
+)]
+pub async fn fuzzy(
+    State(state): State<AppState>,
+    Query(params): Query<FuzzyParams>,
+) -> Result<Json<SearchResponse>> {
+    validate_query(&params.q)?;
+    let limit = clamp_limit(params.limit, state.max_results);
+    let offset = validate_offset(params.offset)?;
+    let case_insensitive = params.case.unwrap_or(true);
+    let resp = state
+        .search_fuzzy(&params.q, limit, offset, case_insensitive)
+        .await?;
+    Ok(Json(resp))
+}
+
 fn clamp_limit(req: Option<usize>, max: usize) -> usize {
     req.unwrap_or(max).clamp(1, max.max(1))
 }

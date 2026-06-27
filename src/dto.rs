@@ -8,6 +8,10 @@ pub struct FileItemDto {
     pub name: String,
     pub relative_path: String,
     pub absolute_path: String,
+    /// Fuzzy relevance score (only populated by `/api/fuzzy` and the
+    /// `fuzzy_search` MCP tool). Higher is better. Absent for plain search.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub score: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

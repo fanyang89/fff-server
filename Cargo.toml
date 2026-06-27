@@ -28,3 +28,5 @@ utoipa = { version = "5", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
 rmcp = { version = "1.7", features = ["server", "macros", "transport-streamable-http-server"] }
+
+nucleo-matcher = "0.3"

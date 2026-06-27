@@ -11,6 +11,7 @@ use utoipa::OpenApi;
     paths(
         crate::routes::search::search,
         crate::routes::search::glob,
+        crate::routes::search::fuzzy,
         crate::routes::health::health,
         crate::routes::health::base_path,
         crate::routes::health::file_server,
