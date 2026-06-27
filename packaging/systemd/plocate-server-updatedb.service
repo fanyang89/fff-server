@@ -8,11 +8,10 @@ Type=oneshot
 User=plocate-server
 Group=plocate-server
 
-Environment=PLOCATE_SERVER_BASE_PATH=/srv/files
-Environment=PLOCATE_SERVER_DB_PATH=/var/lib/plocate-server/files.db
+# All configuration (incl. PLOCATE_SERVER_BASE_PATH) comes from the shared env.
 EnvironmentFile=-/etc/plocate-server/plocate-server.env
 
-# Rebuild the on-disk trigram index. ${...} expands from Environment/EnvironmentFile.
+# Rebuild the on-disk trigram index. ${...} expands from the env file.
 ExecStart=/usr/libexec/plocate-server/updatedb \
     -U ${PLOCATE_SERVER_BASE_PATH} \
     -o /var/lib/plocate-server/files.db \

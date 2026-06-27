@@ -65,9 +65,9 @@ contents:
     file_info:
       mode: 0644
 
-  # --- config example (noreplace so upgrades never clobber a real config) ---
-  - src: packaging/etc/plocate-server.env.example
-    dst: /etc/plocate-server/plocate-server.env.example
+  # --- active config (noreplace so upgrades never clobber a real config) ---
+  - src: packaging/etc/plocate-server.env
+    dst: /etc/plocate-server/plocate-server.env
     type: config|noreplace
     file_info:
       mode: 0644

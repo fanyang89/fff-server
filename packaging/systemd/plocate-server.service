@@ -9,18 +9,8 @@ Type=simple
 User=plocate-server
 Group=plocate-server
 
-# Built-in defaults; override by copying plocate-server.env.example to
-# plocate-server.env and editing.
-Environment=PLOCATE_SERVER_BASE_PATH=/srv/files
-Environment=PLOCATE_SERVER_BIND=127.0.0.1:8787
-Environment=PLOCATE_SERVER_DB_PATH=/var/lib/plocate-server/files.db
-Environment=PLOCATE_SERVER_PLOCATE_BIN=/usr/libexec/plocate-server/plocate
-Environment=PLOCATE_SERVER_UPDATEDB_BIN=/usr/libexec/plocate-server/updatedb
-Environment=PLOCATE_SERVER_REINDEX_INTERVAL_SECS=0
-Environment=PLOCATE_SERVER_MAX_RESULTS=100
-Environment=PLOCATE_SERVER_MAX_CONCURRENT_SEARCHES=8
-Environment=PLOCATE_SERVER_SEARCH_TIMEOUT_SECS=10
-Environment=PLOCATE_SERVER_UPDATEDB_TIMEOUT_SECS=3600
+# All configuration lives in /etc/plocate-server/plocate-server.env (the single
+# source — no inline Environment= defaults to drift out of sync).
 EnvironmentFile=-/etc/plocate-server/plocate-server.env
 
 ExecStart=/usr/bin/plocate-server
