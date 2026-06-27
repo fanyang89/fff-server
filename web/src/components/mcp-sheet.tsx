@@ -17,7 +17,7 @@ const SERVER_URL = "http://127.0.0.1:8787/mcp"
 // VS Code / mcp.json style — widely adopted by Cursor, Cline, etc.
 const MCP_CONFIG = `{
   "mcpServers": {
-    "fff-server": {
+    "plocate-server": {
       "url": "${SERVER_URL}",
       "type": "http"
     }

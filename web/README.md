@@ -1,32 +1,41 @@
-# React + TypeScript + Vite
+# plocate-web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + shadcn UI for [plocate-server](../README.md). Filename/path search
+with debounced instant results and an MCP configuration sheet.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Vite + React 19 + TypeScript
+- Tailwind CSS v4 + shadcn/ui (radix-nova, neutral)
+- sonner for toasts, lucide-react for icons
 
-## React Compiler
+## Develop
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The dev server proxies `/api`, `/swagger-ui`, `/openapi.json` to
+`http://127.0.0.1:8787` (see `vite.config.ts`). Start the backend first:
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+cargo run -- --base-path /srv/files
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Then in another terminal:
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:5173
+```
+
+## Scripts
+
+| Command       | Description                              |
+|---------------|------------------------------------------|
+| `pnpm dev`    | Vite dev server with HMR                 |
+| `pnpm build`  | Type-check and build into `dist/`        |
+| `pnpm lint`   | oxlint                                   |
+| `pnpm preview`| Serve the production build locally       |
+
+## Add shadcn components
+
+```bash
+pnpm dlx shadcn@latest add <component>
+```

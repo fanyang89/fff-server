@@ -13,7 +13,7 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col px-4 py-8">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold tracking-tight">fff</h1>
+        <h1 className="text-lg font-semibold tracking-tight">plocate-web</h1>
         <McpSheet />
       </header>
 
