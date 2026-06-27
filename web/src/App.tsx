@@ -1,14 +1,17 @@
 import { useState } from "react"
+import { Footer } from "@/components/footer"
 import { McpDialog } from "@/components/mcp-dialog"
 import { Results } from "@/components/results"
 import { SearchBar } from "@/components/search-bar"
 import { useDebounce } from "@/hooks/use-debounce"
+import { useHealth } from "@/hooks/use-health"
 import { useSearch } from "@/hooks/use-search"
 
 export default function App() {
   const [query, setQuery] = useState("")
   const debounced = useDebounce(query, 300)
   const { state, refetch } = useSearch(debounced)
+  const health = useHealth()
 
   return (
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col px-4 py-8">
@@ -24,9 +27,7 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="mt-8 text-center text-muted-foreground text-xs">
-        基于 plocate · 路径搜索，毫秒级响应
-      </footer>
+      <Footer health={health} />
     </div>
   )
 }

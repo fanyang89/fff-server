@@ -11,6 +11,17 @@ export type SearchResponse = {
   items: FileItem[]
 }
 
+export type HealthResponse = {
+  ok: boolean
+  base_path: string
+  db_present: boolean
+  db_mtime_unix: number | null
+  db_size_bytes: number | null
+  reindexing: boolean
+  plocate_available: boolean
+  updatedb_available: boolean
+}
+
 export class SearchError extends Error {
   readonly retryable: boolean
 
@@ -60,4 +71,15 @@ export async function fetchSearch(
   } catch {
     throw new SearchError("响应解析失败", false)
   }
+}
+
+export async function fetchHealth(
+  signal: AbortSignal,
+): Promise<HealthResponse> {
+  const res = await fetch("/api/health", {
+    signal,
+    headers: { accept: "application/json" },
+  })
+  if (!res.ok) throw new Error(`health failed (${res.status})`)
+  return (await res.json()) as HealthResponse
 }
