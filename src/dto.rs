@@ -89,3 +89,9 @@ pub struct FileServerResponse {
     /// Clients append `/<result.relative_path>` (URL-encoding each segment).
     pub url: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct FeedbackResponse {
+    /// Contact email for bug reports and feedback, or null if unconfigured.
+    pub email: Option<String>,
+}

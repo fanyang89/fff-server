@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { MessageCircle, Send } from "lucide-react"
-import { FEEDBACK_EMAIL } from "@/config"
+import { fetchFeedback } from "@/api"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,12 +15,19 @@ import { Textarea } from "@/components/ui/textarea"
 export function FeedbackDialog() {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState("")
+  const [email, setEmail] = useState<string | null | undefined>(undefined)
 
-  if (!FEEDBACK_EMAIL) return null
+  useEffect(() => {
+    const ctrl = new AbortController()
+    fetchFeedback(ctrl.signal).then((c) => setEmail(c.email)).catch(() => setEmail(null))
+    return () => ctrl.abort()
+  }, [])
+
+  if (!email) return null
 
   const subject = encodeURIComponent("[plocate-web] 反馈")
   const body = encodeURIComponent(message)
-  const mailto = `mailto:${FEEDBACK_EMAIL}?subject=${subject}${message ? `&body=${body}` : ""}`
+  const mailto = `mailto:${email}?subject=${subject}${message ? `&body=${body}` : ""}`
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -42,7 +49,7 @@ export function FeedbackDialog() {
           <div className="space-y-1.5">
             <span className="text-muted-foreground text-xs">收件地址</span>
             <code className="block select-all rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm">
-              {FEEDBACK_EMAIL}
+              {email}
             </code>
           </div>
 

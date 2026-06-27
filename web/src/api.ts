@@ -47,6 +47,10 @@ export type FileServerConfig = {
   url: string | null
 }
 
+export type FeedbackConfig = {
+  email: string | null
+}
+
 export class SearchError extends Error {
   readonly retryable: boolean
 
@@ -141,6 +145,17 @@ export async function fetchFileServer(
   })
   if (!res.ok) throw new Error(`file-server failed (${res.status})`)
   return (await res.json()) as FileServerConfig
+}
+
+export async function fetchFeedback(
+  signal: AbortSignal,
+): Promise<FeedbackConfig> {
+  const res = await fetch("/api/feedback", {
+    signal,
+    headers: { accept: "application/json" },
+  })
+  if (!res.ok) throw new Error(`feedback failed (${res.status})`)
+  return (await res.json()) as FeedbackConfig
 }
 
 /// Build a file-browse URL by appending a result's relative path to the

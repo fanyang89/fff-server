@@ -26,7 +26,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/stats", get(stats::stats))
         .route("/api/reindex", post(reindex::reindex))
         .route("/api/base-path", get(health::base_path))
-        .route("/api/file-server", get(health::file_server));
+        .route("/api/file-server", get(health::file_server))
+        .route("/api/feedback", get(health::feedback));
 
     // MCP / Streamable HTTP endpoint — shares the same engine/state as REST.
     let mcp_state = state.clone();

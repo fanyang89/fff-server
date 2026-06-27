@@ -3,7 +3,7 @@ use std::path::Path;
 use axum::Json;
 use axum::extract::State;
 
-use crate::dto::{BasePathResponse, FileServerResponse, HealthResponse};
+use crate::dto::{BasePathResponse, FeedbackResponse, FileServerResponse, HealthResponse};
 use crate::error::Result;
 use crate::state::AppState;
 
@@ -61,6 +61,20 @@ pub async fn base_path(State(state): State<AppState>) -> Result<Json<BasePathRes
 pub async fn file_server(State(state): State<AppState>) -> Result<Json<FileServerResponse>> {
     Ok(Json(FileServerResponse {
         url: state.file_server_url.as_deref().map(str::to_owned),
+    }))
+}
+
+/// Contact email for bug reports and feedback (optional). Clients render a
+/// mailto link when present, and hide the feedback entry when null.
+#[utoipa::path(
+    get,
+    path = "/api/feedback",
+    tag = "lifecycle",
+    responses((status = 200, description = "Feedback contact email", body = FeedbackResponse))
+)]
+pub async fn feedback(State(state): State<AppState>) -> Result<Json<FeedbackResponse>> {
+    Ok(Json(FeedbackResponse {
+        email: state.feedback_email.as_deref().map(str::to_owned),
     }))
 }
 

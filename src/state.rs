@@ -24,6 +24,7 @@ pub struct AppState {
     pub updatedb_bin: Arc<OsString>,
     pub max_results: usize,
     pub file_server_url: Arc<Option<String>>,
+    pub feedback_email: Arc<Option<String>>,
     /// Per-path `is_dir` cache (stat results). Keyed by absolute path; values
     /// are valid for the current reindex window — cleared on reindex completion.
     /// `moka::sync::Cache` is `Clone` and shares its store internally, so no
@@ -71,6 +72,7 @@ impl AppState {
             updatedb_bin: Arc::new(cfg.updatedb_bin.clone().into()),
             max_results: cfg.max_results,
             file_server_url: Arc::new(normalize_file_server_url(cfg.file_server_url.as_deref())),
+            feedback_email: Arc::new(normalize_feedback_email(cfg.feedback_email.as_deref())),
             stat_cache: Cache::new(STAT_CACHE_CAPACITY),
             reindexing: Arc::new(AtomicBool::new(false)),
             last_run: Arc::new(Mutex::new(None)),
@@ -341,6 +343,16 @@ fn normalize_file_server_url(raw: Option<&str>) -> Option<String> {
         return None;
     }
     Some(raw.trim_end_matches('/').to_owned())
+}
+
+/// Trim the feedback email; empty input collapses to None so the UI hides the
+/// feedback entry entirely.
+fn normalize_feedback_email(raw: Option<&str>) -> Option<String> {
+    let raw = raw?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    Some(raw.to_owned())
 }
 
 /// Read RSS (bytes) and thread count from `/proc/self/status` (Linux).

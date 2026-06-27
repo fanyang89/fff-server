@@ -63,6 +63,11 @@ pub struct Config {
     /// relative path. Optional; omitted = no browse links.
     #[arg(long, env = "PLOCATE_SERVER_FILE_SERVER_URL")]
     pub file_server_url: Option<String>,
+
+    /// Contact email surfaced in the web UI for bug reports and feedback.
+    /// When unset, the feedback entry is hidden entirely.
+    #[arg(long, env = "PLOCATE_SERVER_FEEDBACK_EMAIL")]
+    pub feedback_email: Option<String>,
 }
 
 impl Config {
