@@ -2,7 +2,7 @@ version: "3"
 
 vars:
   TARGET: x86_64-unknown-linux-musl
-  BIN: target/{{.TARGET}}/release/fff-server
+  BIN: target/{{.TARGET}}/release/plocate-server
 
 tasks:
   default:

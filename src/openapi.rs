@@ -3,7 +3,7 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     info(
-        title = "fff-server",
+        title = "plocate-server",
         version = "0.1.0",
         description = "RESTful filename-search API server backed by a plocate trigram index.\n\nThe index lives on disk (built by updatedb), so a restart never rescans. Designed for very large trees (millions of files).",
         license(name = "MIT"),

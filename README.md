@@ -1,4 +1,4 @@
-# fff-server
+# plocate-server
 
 A RESTful **filename / path search** API server for very large file trees
 (millions of files), backed by a [plocate](https://plocate.sesse.net/) trigram
@@ -52,12 +52,12 @@ task build           # cargo zigbuild --release --target x86_64-unknown-linux-mu
 task inspect         # confirm: "statically linked" / "not a dynamic executable"
 ```
 
-Output: `target/x86_64-unknown-linux-musl/release/fff-server`.
+Output: `target/x86_64-unknown-linux-musl/release/plocate-server`.
 
 ### Single-file deploy
 
 ```bash
-scp target/x86_64-unknown-linux-musl/release/fff-server host:/usr/local/bin/
+scp target/x86_64-unknown-linux-musl/release/plocate-server host:/usr/local/bin/
 # the binary is self-contained; plocate + updatedb must exist on the target host
 ```
 
@@ -82,13 +82,13 @@ All flags have matching environment variables.
 
 | Flag                        | Env                                  | Default                              |
 |-----------------------------|--------------------------------------|--------------------------------------|
-| `--base-path`               | `FFF_SERVER_BASE_PATH`               | *(required)*                         |
-| `--bind`                    | `FFF_SERVER_BIND`                    | `127.0.0.1:8787`                     |
-| `--db-path`                 | `FFF_SERVER_DB_PATH`                 | `$XDG_DATA_HOME/fff-server/files.db` |
-| `--plocate-bin`             | `FFF_SERVER_PLOCATE_BIN`             | `plocate`                            |
-| `--updatedb-bin`            | `FFF_SERVER_UPDATEDB_BIN`            | `updatedb`                           |
-| `--reindex-interval-secs`   | `FFF_SERVER_REINDEX_INTERVAL_SECS`   | `21600` (6h; `0` disables)           |
-| `--max-results`             | `FFF_SERVER_MAX_RESULTS`             | `100`                                |
+| `--base-path`               | `PLOCATE_SERVER_BASE_PATH`               | *(required)*                         |
+| `--bind`                    | `PLOCATE_SERVER_BIND`                    | `127.0.0.1:8787`                     |
+| `--db-path`                 | `PLOCATE_SERVER_DB_PATH`                 | `$XDG_DATA_HOME/plocate-server/files.db` |
+| `--plocate-bin`             | `PLOCATE_SERVER_PLOCATE_BIN`             | `plocate`                            |
+| `--updatedb-bin`            | `PLOCATE_SERVER_UPDATEDB_BIN`            | `updatedb`                           |
+| `--reindex-interval-secs`   | `PLOCATE_SERVER_REINDEX_INTERVAL_SECS`   | `21600` (6h; `0` disables)           |
+| `--max-results`             | `PLOCATE_SERVER_MAX_RESULTS`             | `100`                                |
 
 ## API
 
@@ -169,29 +169,29 @@ server.
 ```bash
 # 1. Build & install the binary
 task build
-sudo install -m 0755 target/x86_64-unknown-linux-musl/release/fff-server /usr/local/bin/fff-server
+sudo install -m 0755 target/x86_64-unknown-linux-musl/release/plocate-server /usr/local/bin/plocate-server
 
 # 2. Ensure plocate is installed
 sudo dnf install plocate
 
 # 3. Dedicated unprivileged user
-sudo useradd -r -s /usr/sbin/nologin -d /var/lib/fff-server -M fff-server
-sudo install -d -o fff-server -g fff-server /var/lib/fff-server
+sudo useradd -r -s /usr/sbin/nologin -d /var/lib/plocate-server -M plocate-server
+sudo install -d -o plocate-server -g plocate-server /var/lib/plocate-server
 
-# 4. Install the unit (shipped at deploy/fff-server.service)
-sudo install -m 0644 deploy/fff-server.service /etc/systemd/system/
+# 4. Install the unit (shipped at deploy/plocate-server.service)
+sudo install -m 0644 deploy/plocate-server.service /etc/systemd/system/
 sudo systemctl daemon-reload
 
 # 5. Point it at your tree (override ExecStart without editing the file)
-sudo systemctl edit fff-server
+sudo systemctl edit plocate-server
 #   [Service]
 #   ExecStart=
-#   ExecStart=/usr/local/bin/fff-server \
+#   ExecStart=/usr/local/bin/plocate-server \
 #       --base-path=/srv/files \
-#       --db-path=/var/lib/fff-server/files.db \
+#       --db-path=/var/lib/plocate-server/files.db \
 #       --reindex-interval-secs=21600
 
-sudo systemctl enable --now fff-server
+sudo systemctl enable --now plocate-server
 ```
 
 ### Resource limits
@@ -213,8 +213,8 @@ foreground service is never starved; `updatedb` runs inherit these too. No
 ### Permissions
 
 `updatedb` must read every file under `--base-path` to index it. The unit grants
-`CAP_DAC_READ_SEARCH` so the unprivileged `fff-server` user can do this without
-running as root. The resulting `files.db` is owned by `fff-server`, so the
+`CAP_DAC_READ_SEARCH` so the unprivileged `plocate-server` user can do this without
+running as root. The resulting `files.db` is owned by `plocate-server`, so the
 `plocate` child can read it back directly.
 
 ### Observe
@@ -222,7 +222,7 @@ running as root. The resulting `files.db` is owned by `fff-server`, so the
 ```bash
 curl http://127.0.0.1:8787/api/stats | jq    # RSS, db size/mtime, last reindex
 curl http://127.0.0.1:8787/api/health | jq
-systemctl status fff-server
+systemctl status plocate-server
 ```
 
 ## License

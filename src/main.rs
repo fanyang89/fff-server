@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let cfg = Config::parse();
-    tracing::info!(bind = %cfg.bind, "starting fff-server (plocate backend)");
+    tracing::info!(bind = %cfg.bind, "starting plocate-server (plocate backend)");
 
     let state = AppState::new(&cfg)?;
     tracing::info!(

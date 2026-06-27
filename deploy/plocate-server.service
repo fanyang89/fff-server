@@ -1,20 +1,19 @@
 [Unit]
-Description=fff-server (plocate-backed filename search REST API)
-Documentation=https://github.com/dmtrKovalenko/fff
+Description=plocate-server (plocate-backed filename search REST API)
 After=network-online.target
 Wants=network-online.target
 # Requires plocate (provides plocate + updatedb) installed on the host.
 
 [Service]
 Type=simple
-User=fff-server
-Group=fff-server
+User=plocate-server
+Group=plocate-server
 
-# --- Override ExecStart via `systemctl edit fff-server` for your tree ---
-ExecStart=/usr/local/bin/fff-server \
+# --- Override ExecStart via `systemctl edit plocate-server` for your tree ---
+ExecStart=/usr/local/bin/plocate-server \
     --base-path=/srv/files \
     --bind=127.0.0.1:8787 \
-    --db-path=/var/lib/fff-server/files.db \
+    --db-path=/var/lib/plocate-server/files.db \
     --reindex-interval-secs=21600
 # -----------------------------------------------------------------------
 
@@ -55,7 +54,7 @@ RestrictSUIDSGID=true
 RemoveIPC=true
 # The db-dir must be writable (updatedb writes the index there). The indexed
 # base-path is read-only and read via the capability above.
-ReadWritePaths=/var/lib/fff-server
+ReadWritePaths=/var/lib/plocate-server
 
 [Install]
 WantedBy=multi-user.target
