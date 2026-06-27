@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Code, Globe } from "lucide-react"
 import { Footer } from "@/components/footer"
 import { MaintenanceDialog } from "@/components/maintenance-dialog"
-import { McpDialog } from "@/components/mcp-dialog"
+import { InstallDialog } from "@/components/install-dialog"
 import { Results } from "@/components/results"
 import { SearchBar } from "@/components/search-bar"
 import { Button } from "@/components/ui/button"
@@ -38,7 +38,7 @@ export default function App() {
             </a>
           </Button>
           <MaintenanceDialog />
-          <McpDialog />
+          <InstallDialog />
         </div>
       </header>
 
