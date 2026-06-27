@@ -1,0 +1,48 @@
+version: "3"
+
+vars:
+  TARGET: x86_64-unknown-linux-musl
+  BIN: target/{{.TARGET}}/release/fff-server
+
+tasks:
+  default:
+    desc: Build the static musl release binary
+    cmds:
+      - task: build
+
+  check:
+    desc: Type-check without producing a binary
+    cmds:
+      - cargo check
+
+  build:
+    desc: Build a fully-static x86_64 musl binary with cargo-zigbuild
+    sources:
+      - src/**/*.rs
+      - Cargo.toml
+      - Cargo.lock
+    generates:
+      - "{{.BIN}}"
+    cmds:
+      - cargo zigbuild --release --target {{.TARGET}}
+      - strip "{{.BIN}}" || true
+
+  run:
+    desc: Run with the host toolchain (gnu) for local dev
+    cmds:
+      - cargo run -- {{.CLI_ARGS}}
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - cargo clean
+
+  inspect:
+    desc: Report whether the built binary is statically linked and its size
+    preconditions:
+      - sh: test -f "{{.BIN}}"
+        msg: "binary missing; run: task build first"
+    cmds:
+      - file "{{.BIN}}"
+      - du -h "{{.BIN}}"
+      - sh -c "ldd '{{.BIN}}' 2>&1 || true"

@@ -5,6 +5,9 @@ mod openapi;
 mod routes;
 mod state;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::time::Duration;
 
 use clap::Parser;

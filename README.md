@@ -12,6 +12,49 @@ and lifecycle management over HTTP — with an interactive Swagger UI.
 - Frecency access tracking + query history (combo-boost scoring)
 - Index lifecycle: health, scan progress, force rescan, refresh git status
 - Auto-generated OpenAPI 3.0 spec + Swagger UI
+- **mimalloc** global allocator + periodic heap compaction (`mimalloc-collect`)
+- Fully-static musl binary via **cargo-zigbuild** (single-file deploy, no runtime deps)
+
+## Build (static musl)
+
+The release artifact is a single fully-statically-linked binary built with
+[cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild) against the
+`x86_64-unknown-linux-musl` target. All native C deps (libgit2, zlib, LMDB,
+mimalloc) are vendored — **no system C libraries required** to build or run.
+
+### Prerequisites (build host)
+
+```bash
+rustup target add x86_64-unknown-linux-musl
+cargo install cargo-zigbuild
+# install zig 0.16+ (https://ziglang.org/download/)
+```
+
+### Build
+
+```bash
+task build           # or: cargo zigbuild --release --target x86_64-unknown-linux-musl
+task inspect         # confirm: "statically linked" / "not a dynamic executable"
+```
+
+Output: `target/x86_64-unknown-linux-musl/release/fff-server` (~19 MB, stripped).
+
+### Single-file deploy
+
+```bash
+scp target/x86_64-unknown-linux-musl/release/fff-server host:/usr/local/bin/
+# no ld, no libc, no libssl — it just runs
+```
+
+For local gnu development without zig, use `task run` (or `cargo run`).
+
+### mimalloc
+
+mimalloc is wired as the Rust global allocator (`#[global_allocator]`), and the
+`mimalloc-collect` feature of fff-search is enabled so the engine's background
+pool periodically forces heap compaction (`mi_collect(true)`) — keeping RSS
+tight under the cgroup `MemoryMax` ceiling. C libraries (libgit2, LMDB) keep
+musl's allocator; this is intentional to avoid double-interposition.
 
 ## Quick start
 

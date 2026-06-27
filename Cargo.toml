@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-fff-search = "0.9"
-git2 = "0.20"
+fff-search = { version = "0.9", features = ["mimalloc-collect"] }
+git2 = { version = "0.20", default-features = false }
+
+mimalloc = { version = "0.1", features = ["local_dynamic_tls"] }
 
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "fs"] }
 axum = "0.7"
