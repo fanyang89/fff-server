@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Env (keep .env.example tracked)
+.env
+.env.*
+!.env.example
+
 # Vite dependency optimizer cache
 .vite
 
