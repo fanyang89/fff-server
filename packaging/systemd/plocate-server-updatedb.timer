@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily refresh of the plocate-server index
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+AccuracySec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

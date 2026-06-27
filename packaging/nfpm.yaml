@@ -1,0 +1,85 @@
+name: plocate-server
+arch: amd64
+platform: linux
+version: 0.1.0
+release: 1
+section: utils
+priority: optional
+maintainer: plocate-server maintainers <noreply@example.com>
+vendor: plocate-server
+homepage: https://github.com/dmtrKovalenko/fff
+description: |
+  RESTful filename/path search API server backed by a plocate trigram index.
+  Designed for very large file trees (millions of files). Ships vendored
+  statically-linked plocate and updatedb, a systemd service for the API, and a
+  systemd timer for periodic index refresh.
+license: "GPLv2+"
+# The bundle includes plocate (GPLv2+) and plocate-server (MIT); the combined
+# distribution is licensed under GPLv2+.
+
+# Runtime dependencies. Binaries are fully static (musl); the only requirements
+# are systemd (for the units) and shadow-utils (useradd in the pre-install script).
+overrides:
+  rpm:
+    depends:
+      - shadow-utils
+      - systemd
+
+contents:
+  # --- binaries (all fully static musl) ---
+  - src: target/x86_64-unknown-linux-musl/release/plocate-server
+    dst: /usr/bin/plocate-server
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+  - src: dist/musl/plocate
+    dst: /usr/libexec/plocate-server/plocate
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+  - src: dist/musl/updatedb
+    dst: /usr/libexec/plocate-server/updatedb
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+
+  # --- systemd units ---
+  - src: packaging/systemd/plocate-server.service
+    dst: /usr/lib/systemd/system/plocate-server.service
+    file_info:
+      mode: 0644
+  - src: packaging/systemd/plocate-server-updatedb.service
+    dst: /usr/lib/systemd/system/plocate-server-updatedb.service
+    file_info:
+      mode: 0644
+  - src: packaging/systemd/plocate-server-updatedb.timer
+    dst: /usr/lib/systemd/system/plocate-server-updatedb.timer
+    file_info:
+      mode: 0644
+
+  # --- config example (noreplace so upgrades never clobber a real config) ---
+  - src: packaging/etc/plocate-server.env.example
+    dst: /etc/plocate-server/plocate-server.env.example
+    type: config|noreplace
+    file_info:
+      mode: 0644
+
+  # --- empty database directory owned by the service user ---
+  - dst: /var/lib/plocate-server
+    type: dir
+    file_info:
+      mode: 0755
+      owner: plocate-server
+      group: plocate-server
+
+scripts:
+  preinstall: packaging/scripts/preinst.sh
+  postinstall: packaging/scripts/postinst.sh
+  preremove: packaging/scripts/prerm.sh
+  postremove: packaging/scripts/postrm.sh
+
+rpm:
+  compression: zstd

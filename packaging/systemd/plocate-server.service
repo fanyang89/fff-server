@@ -1,0 +1,58 @@
+[Unit]
+Description=plocate-server (plocate-backed filename search REST API)
+Documentation=https://github.com/dmtrKovalenko/fff
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=plocate-server
+Group=plocate-server
+
+# Built-in defaults; override by copying plocate-server.env.example to
+# plocate-server.env and editing.
+Environment=PLOCATE_SERVER_BASE_PATH=/srv/files
+Environment=PLOCATE_SERVER_BIND=127.0.0.1:8787
+Environment=PLOCATE_SERVER_DB_PATH=/var/lib/plocate-server/files.db
+Environment=PLOCATE_SERVER_PLOCATE_BIN=/usr/libexec/plocate-server/plocate
+Environment=PLOCATE_SERVER_UPDATEDB_BIN=/usr/libexec/plocate-server/updatedb
+Environment=PLOCATE_SERVER_REINDEX_INTERVAL_SECS=0
+Environment=PLOCATE_SERVER_MAX_RESULTS=100
+EnvironmentFile=-/etc/plocate-server/plocate-server.env
+
+ExecStart=/usr/bin/plocate-server
+
+Restart=on-failure
+RestartSec=3
+
+# updatedb must traverse the whole tree to index it; this capability lets the
+# unprivileged service read past file-mode bits without running as root.
+AmbientCapabilities=CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+
+# The server keeps no index in RAM; 1G is ample headroom.
+MemoryMax=1G
+MemoryHigh=800M
+
+# Yield to the foreground service under contention.
+CPUWeight=20
+Nice=19
+IOSchedulingClass=idle
+IOSchedulingPriority=7
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+ReadWritePaths=/var/lib/plocate-server
+
+[Install]
+WantedBy=multi-user.target

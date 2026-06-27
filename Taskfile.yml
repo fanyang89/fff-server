@@ -71,6 +71,23 @@ tasks:
       - sh -c "ldd dist/musl/plocate 2>&1 || true"
       - dist/musl/plocate --version
 
+  rpm:
+    desc: Build the RPM via nFPM (depends on build + plocate)
+    preconditions:
+      - sh: command -v nfpm >/dev/null
+        msg: "nfpm not installed (go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest)"
+    deps: [build, plocate]
+    sources:
+      - packaging/**/*
+      - target/x86_64-unknown-linux-musl/release/plocate-server
+      - dist/musl/plocate
+      - dist/musl/updatedb
+    generates:
+      - "dist/plocate-server-*.rpm"
+    cmds:
+      - mkdir -p dist
+      - nfpm package --config packaging/nfpm.yaml --packager rpm --target dist/
+
   inspect:
     desc: Report whether the built binary is statically linked and its size
     preconditions:
