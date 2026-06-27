@@ -17,16 +17,12 @@ import {
 
 const RULES = [
   {
-    title: "全路径子串匹配",
-    desc: "默认在完整路径中按子串匹配，不要求完整文件名。",
+    title: "多关键字模糊搜索",
+    desc: "空格分隔的多个关键字需同时命中，顺序不限，结果按相关性排序。",
   },
   {
     title: "含通配符时按 glob 解析",
     desc: "输入中出现 * ? [ ] 之一即作为 glob 模式，默认在路径任意位置匹配；以 / 开头可锚定到路径根。",
-  },
-  {
-    title: "多关键字为 AND",
-    desc: "以空格分隔的多个关键字需同时命中，顺序不限。",
   },
 ]
 
@@ -117,8 +113,8 @@ export function SyntaxHelpTrigger() {
                 </Badge>
               </div>
               <p className="text-muted-foreground text-xs">
-                更多参数（limit / offset / case / scope）可通过{" "}
-                <code className="font-mono">/api/search</code>{" "}
+                更多参数（limit / offset / case）可通过{" "}
+                <code className="font-mono">/api/fuzzy</code>{" "}
                 查询参数覆盖，详见 API 文档。
               </p>
             </section>

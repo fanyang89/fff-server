@@ -3,6 +3,7 @@ export type FileItem = {
   name: string
   relative_path: string
   absolute_path: string
+  score?: number
 }
 
 export type SearchResponse = {
@@ -68,13 +69,12 @@ export async function fetchSearch(
   const params = new URLSearchParams({
     q,
     limit: "100",
-    scope: "path",
     case: "true",
   })
 
   let res: Response
   try {
-    res = await fetch(`/api/search?${params.toString()}`, {
+    res = await fetch(`/api/fuzzy?${params.toString()}`, {
       signal,
       headers: { accept: "application/json" },
     })
