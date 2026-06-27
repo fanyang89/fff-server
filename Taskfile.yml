@@ -15,12 +15,43 @@ tasks:
     cmds:
       - cargo check
 
+  web-install:
+    desc: Install frontend dependencies
+    sources:
+      - web/package.json
+      - web/pnpm-lock.yaml
+    generates:
+      - web/node_modules/.package-lock.json
+    cmds:
+      - pnpm install --dir web
+
+  web-build:
+    desc: Build the frontend into web/dist (embedded by rust-embed at release)
+    deps: [web-install]
+    sources:
+      - web/src/**/*
+      - web/index.html
+      - web/package.json
+      - web/vite.config.ts
+      - web/components.json
+    generates:
+      - web/dist/**/*
+    cmds:
+      - pnpm --dir web build
+
+  web-dev:
+    desc: Vite dev server (proxies /api, /swagger-ui, /openapi.json to :8787)
+    cmds:
+      - pnpm --dir web dev
+
   build:
     desc: Build a fully-static x86_64 musl binary with cargo-zigbuild
+    deps: [web-build]
     sources:
       - src/**/*.rs
       - Cargo.toml
       - Cargo.lock
+      - web/dist/**/*
     generates:
       - "{{.BIN}}"
     cmds:

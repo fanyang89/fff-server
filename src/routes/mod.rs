@@ -1,3 +1,4 @@
+pub mod frontend;
 pub mod health;
 pub mod reindex;
 pub mod search;
@@ -42,5 +43,6 @@ pub fn router(state: AppState) -> Router {
         .merge(api)
         .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", ApiDoc::openapi()))
         .nest_service("/mcp", mcp_service)
+        .fallback(frontend::frontend_fallback)
         .with_state(state)
 }

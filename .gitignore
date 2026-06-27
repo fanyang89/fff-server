@@ -6,7 +6,10 @@
 
 .tmp/
 build/
-dist/
+# Packaging output at the repo root only (RPM, pacman packages).
+# web/dist is ignored by web/.gitignore; build.rs ensures the folder exists
+# so rust-embed compiles on a fresh clone.
+/dist/
 
 # Env (keep .env.example tracked)
 .env
