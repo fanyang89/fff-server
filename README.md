@@ -1,26 +1,41 @@
 # fff-server
 
-A RESTful API server built on top of the [`fff`](https://github.com/dmtrKovalenko/fff)
-file-search engine. It keeps a single indexed directory resident in one
-long-lived process and exposes frecency-ranked fuzzy search, glob matching,
-and lifecycle management over HTTP — with an interactive Swagger UI.
+A RESTful **filename / path search** API server for very large file trees
+(millions of files), backed by a [plocate](https://plocate.sesse.net/) trigram
+index that lives on disk.
+
+The index is built and refreshed by `updatedb` and queried by `plocate`. Because
+the index is on disk, **a process restart never rescans** — the server starts
+instantly and is ready to serve. Designed for a shared host where it must not
+disturb a foreground service (e.g. `dufs`).
 
 ## Features
 
-- Fuzzy file / directory / mixed search with typo tolerance and constraint syntax
-- Literal glob matching, frecency-ranked
-- Frecency access tracking + query history (combo-boost scoring)
-- Index lifecycle: health, scan progress, force rescan, refresh git status
+- Filename / path search via plocate's trigram inverted index (sub-millisecond
+  even at 10M+ files)
+- On-disk index — restart is instant, no rescan
+- Periodic reindex via in-server interval + on-demand `POST /api/reindex`
+- Glob matching
 - Auto-generated OpenAPI 3.0 spec + Swagger UI
-- **mimalloc** global allocator + periodic heap compaction (`mimalloc-collect`)
-- Fully-static musl binary via **cargo-zigbuild** (single-file deploy, no runtime deps)
+- **mimalloc** global allocator
+- Fully-static musl binary via **cargo-zigbuild** (single-file deploy)
+- cgroup-bounded so it never starves the foreground service
+
+## Runtime requirements
+
+The host needs the **`plocate`** package, which provides both the `plocate`
+query binary and `updatedb`:
+
+```bash
+sudo dnf install plocate     # Fedora
+sudo apt install plocate     # Debian/Ubuntu
+```
 
 ## Build (static musl)
 
-The release artifact is a single fully-statically-linked binary built with
-[cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild) against the
-`x86_64-unknown-linux-musl` target. All native C deps (libgit2, zlib, LMDB,
-mimalloc) are vendored — **no system C libraries required** to build or run.
+A single fully-statically-linked binary built with
+[cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild). No C dependencies,
+so the build is fast and the binary has no runtime libc requirement.
 
 ### Prerequisites (build host)
 
@@ -33,144 +48,148 @@ cargo install cargo-zigbuild
 ### Build
 
 ```bash
-task build           # or: cargo zigbuild --release --target x86_64-unknown-linux-musl
+task build           # cargo zigbuild --release --target x86_64-unknown-linux-musl
 task inspect         # confirm: "statically linked" / "not a dynamic executable"
 ```
 
-Output: `target/x86_64-unknown-linux-musl/release/fff-server` (~19 MB, stripped).
+Output: `target/x86_64-unknown-linux-musl/release/fff-server`.
 
 ### Single-file deploy
 
 ```bash
 scp target/x86_64-unknown-linux-musl/release/fff-server host:/usr/local/bin/
-# no ld, no libc, no libssl — it just runs
+# the binary is self-contained; plocate + updatedb must exist on the target host
 ```
 
 For local gnu development without zig, use `task run` (or `cargo run`).
 
-### mimalloc
-
-mimalloc is wired as the Rust global allocator (`#[global_allocator]`), and the
-`mimalloc-collect` feature of fff-search is enabled so the engine's background
-pool periodically forces heap compaction (`mi_collect(true)`) — keeping RSS
-tight under the cgroup `MemoryMax` ceiling. C libraries (libgit2, LMDB) keep
-musl's allocator; this is intentional to avoid double-interposition.
-
 ## Quick start
 
 ```bash
-cargo run --release -- --base-path /path/to/your/repo
+cargo run --release -- --base-path /srv/files
 ```
 
-Then open the Swagger UI:
+The first start builds the index in the background (searches return empty until
+ready). Subsequent starts reuse the on-disk index and serve immediately. Open:
 
 ```
 http://127.0.0.1:8787/swagger-ui
 ```
 
-Raw spec: `GET /openapi.json` (importable into Postman / Apifox).
-
 ## Configuration
 
 All flags have matching environment variables.
 
-| Flag                  | Env                            | Default                          |
-|-----------------------|--------------------------------|----------------------------------|
-| `--base-path`         | `FFF_SERVER_BASE_PATH`         | *(required)*                     |
-| `--bind`              | `FFF_SERVER_BIND`              | `127.0.0.1:8787`                 |
-| `--db-dir`            | `FFF_SERVER_DB_DIR`            | `$XDG_CACHE_HOME/fff-server`     |
-| `--ai-mode`           | `FFF_SERVER_AI_MODE`           | `true`                           |
-| `--watch`             | `FFF_SERVER_WATCH`             | `true`                           |
-| `--content-indexing`  | `FFF_SERVER_CONTENT_INDEXING`  | `false`                          |
-| `--mmap-cache`        | `FFF_SERVER_MMAP_CACHE`        | `false`                          |
-| `--wait-scan-secs`    | `FFF_SERVER_WAIT_SCAN_SECS`    | `10`                             |
-| `--max-results`       | `FFF_SERVER_MAX_RESULTS`       | `100`                            |
+| Flag                        | Env                                  | Default                              |
+|-----------------------------|--------------------------------------|--------------------------------------|
+| `--base-path`               | `FFF_SERVER_BASE_PATH`               | *(required)*                         |
+| `--bind`                    | `FFF_SERVER_BIND`                    | `127.0.0.1:8787`                     |
+| `--db-path`                 | `FFF_SERVER_DB_PATH`                 | `$XDG_DATA_HOME/fff-server/files.db` |
+| `--plocate-bin`             | `FFF_SERVER_PLOCATE_BIN`             | `plocate`                            |
+| `--updatedb-bin`            | `FFF_SERVER_UPDATEDB_BIN`            | `updatedb`                           |
+| `--reindex-interval-secs`   | `FFF_SERVER_REINDEX_INTERVAL_SECS`   | `21600` (6h; `0` disables)           |
+| `--max-results`             | `FFF_SERVER_MAX_RESULTS`             | `100`                                |
 
 ## API
 
-| Method | Path                | Description                              |
-|--------|---------------------|------------------------------------------|
-| GET    | `/api/search`       | Fuzzy search (`mode=files\|dirs\|mixed`) |
-| GET    | `/api/glob`         | Literal glob search                      |
-| GET    | `/api/history`      | Retrieve a historical query              |
-| POST   | `/api/track`        | Record a file access / query completion  |
-| GET    | `/api/health`       | Engine + DB health                       |
-| GET    | `/api/scan-progress`| Current scan progress                    |
-| POST   | `/api/rescan`       | Trigger a full rescan                    |
-| POST   | `/api/refresh-git`  | Refresh cached git statuses              |
-| GET    | `/api/base-path`    | Currently indexed root                   |
-| GET    | `/api/stats`        | Runtime: RSS / threads / index / cache   |
+| Method | Path              | Description                                            |
+|--------|-------------------|--------------------------------------------------------|
+| GET    | `/api/search`     | Filename/path search (substring or glob)               |
+| GET    | `/api/glob`       | Explicit glob search                                   |
+| GET    | `/api/health`     | Index + binary health                                  |
+| GET    | `/api/stats`      | Process RSS/threads, db size/mtime, last reindex       |
+| POST   | `/api/reindex`    | Trigger a background `updatedb` run                    |
+| GET    | `/api/base-path`  | Currently indexed root                                 |
 
 ### Examples
 
 ```bash
-# Fuzzy search for Rust files, exclude tests
-curl 'http://127.0.0.1:8787/api/search?q=*.rs%20!test/%20schema&limit=20'
+# Substring search (case-insensitive by default)
+curl 'http://127.0.0.1:8787/api/search?q=invoice&limit=20'
+
+# Match basename only
+curl 'http://127.0.0.1:8787/api/search?q=readme&scope=basename'
+
+# Case-sensitive
+curl 'http://127.0.0.1:8787/api/search?q=README&case=true'
 
 # Glob
-curl 'http://127.0.0.1:8787/api/glob?pattern=**/*.toml'
+curl 'http://127.0.0.1:8787/api/glob?pattern=*2024*.log'
 
-# Track an access (feeds frecency ranking)
-curl -X POST http://127.0.0.1:8787/api/track \
-  -H 'Content-Type: application/json' \
-  -d '{"path":"src/main.rs","query":"main"}'
+# Force a refresh
+curl -X POST http://127.0.0.1:8787/api/reindex
 
 # Health
 curl http://127.0.0.1:8787/api/health
 ```
 
+### Notes on results
+
+- plocate's index stores **paths only** — no size/mtime/git metadata. Items
+  contain `name`, `relative_path`, `absolute_path`, and `type` (inferred from a
+  trailing `/` for directories). This matches the "filename and path only" use
+  case.
+- `total_matched` is the number of entries plocate returned up to the requested
+  cap (`offset + limit`), not an exact total over the whole index. `truncated`
+  indicates more matches likely exist.
+
 ## Query syntax
 
-`/api/search` accepts the full fff constraint language:
+`/api/search` passes the pattern to plocate after a `--` separator (no shell,
+so no injection). plocate treats a pattern as:
 
-- `*.rs` / `*.{rs,toml}` — extension / glob filters
-- `test/` — anything nested under `test/`
-- `!something`, `!test/`, `!git:modified` — exclusions
-- `git:modified`, `git:untracked`, `git:staged`, ... — git-status filters
-- mix freely, e.g. `git:modified src/**/*.rs !src/**/mod.rs user controller`
+- a **substring** if it has no glob metacharacters,
+- a **glob** if it contains `*`, `?`, or `[` (must be wrapped in `*...*` to also
+  match substrings).
+
+Multiple patterns are AND-ed. See `plocate(1)` for the full semantics.
 
 ## How it works
 
-The server indexes one directory at startup and keeps the index resident.
-Every search hits warm memory (sub-10 ms typical), so it is far cheaper than
-forking `rg` / `fzf` per request. See the
-[fff README](https://github.com/dmtrKovalenko/fff#what-is-fff-and-why-use-it-over-ripgrep-or-fzf)
-for the algorithmic details.
+```
+HTTP request
+   │  axum handler spawns:
+   ▼
+plocate -d <db> -i -N -0 -l <cap> -- <pattern>     (short-lived child process)
+   │  reads the on-disk trigram index (mmap, io_uring), streams NUL-separated paths
+   ▼
+parsed → JSON
+```
 
-Search calls are dispatched onto `tokio::task::spawn_blocking` since the fff
-engine is CPU-bound (rayon) and must not block the async reactor.
+The index is produced independently by `updatedb -U <root> -o <db>`, run either
+by the in-server interval or by `POST /api/reindex`. Because the index is a file,
+the server process holds **no index in RAM** — its footprint is just the HTTP
+runtime (~7 MB RSS). This is what makes it safe to run alongside a busy file
+server.
 
 ## Deployment & resource control
-
-fff keeps the file index resident in RAM, so on a shared host it can compete
-with other services for memory and CPU. A systemd unit with cgroup v2 limits
-is the recommended way to keep fff-server from affecting the foreground
-service (e.g. `dufs`).
 
 ### Install
 
 ```bash
 # 1. Build & install the binary
-cargo build --release
-sudo install -m 0755 target/release/fff-server /usr/local/bin/fff-server
+task build
+sudo install -m 0755 target/x86_64-unknown-linux-musl/release/fff-server /usr/local/bin/fff-server
 
-# 2. Create a dedicated unprivileged user
+# 2. Ensure plocate is installed
+sudo dnf install plocate
+
+# 3. Dedicated unprivileged user
 sudo useradd -r -s /usr/sbin/nologin -d /var/lib/fff-server -M fff-server
 sudo install -d -o fff-server -g fff-server /var/lib/fff-server
 
-# 3. Install the unit (shipped at deploy/fff-server.service)
+# 4. Install the unit (shipped at deploy/fff-server.service)
 sudo install -m 0644 deploy/fff-server.service /etc/systemd/system/
 sudo systemctl daemon-reload
 
-# 4. Point it at your repo (override ExecStart without editing the file)
+# 5. Point it at your tree (override ExecStart without editing the file)
 sudo systemctl edit fff-server
-#   in the editor, drop a drop-in like:
 #   [Service]
 #   ExecStart=
 #   ExecStart=/usr/local/bin/fff-server \
-#       --base-path=/path/to/your/repo \
-#       --bind=127.0.0.1:8787 \
-#       --db-dir=/var/lib/fff-server
+#       --base-path=/srv/files \
+#       --db-path=/var/lib/fff-server/files.db \
+#       --reindex-interval-secs=21600
 
 sudo systemctl enable --now fff-server
 ```
@@ -179,35 +198,32 @@ sudo systemctl enable --now fff-server
 
 The shipped unit applies these cgroup v2 constraints (edit to taste):
 
-| Directive             | Value      | Effect                                                     |
-|-----------------------|------------|------------------------------------------------------------|
-| `MemoryMax`           | `4G`       | Hard RSS ceiling; OOM-killed + restarted if exceeded.      |
-| `MemoryHigh`          | `3500M`    | Soft line; kernel reclaims/throttles before the hard cap.  |
-| `CPUWeight`           | `20`       | Low weight vs the default 100 — yields CPU under load.     |
-| `Nice`                | `19`       | Lowest static priority.                                    |
-| `IOSchedulingClass`   | `idle`     | Disk IO only served when no one else wants it.             |
+| Directive             | Value     | Effect                                                     |
+|-----------------------|-----------|------------------------------------------------------------|
+| `MemoryMax`           | `1G`      | Hard RSS ceiling. The server holds no index in RAM.       |
+| `AmbientCapabilities` | `CAP_DAC_READ_SEARCH` | Lets `updatedb` traverse the whole tree without root. |
+| `CPUWeight`           | `20`      | Low weight vs default 100 — yields CPU under load.         |
+| `Nice`                | `19`      | Lowest static priority.                                    |
+| `IOSchedulingClass`   | `idle`    | Disk IO only served when no one else wants it.             |
 
-Together `Nice=19` + `IOSchedulingClass=idle` are the strongest guarantees
-that a busy foreground service is never starved, regardless of how the
-services are sliced. `CPUWeight` adds proportional fairness when they share
-a slice. There is **no `CPUQuota`** — fff bursts to all cores when the
-foreground service is idle, so no capacity is wasted. Add `CPUQuota=300%`
-if you want a hard 3-core ceiling instead.
+`Nice=19` + `IOSchedulingClass=idle` are the strongest guarantees that a busy
+foreground service is never starved; `updatedb` runs inherit these too. No
+`CPUQuota` — capacity is not wasted when the host is idle.
+
+### Permissions
+
+`updatedb` must read every file under `--base-path` to index it. The unit grants
+`CAP_DAC_READ_SEARCH` so the unprivileged `fff-server` user can do this without
+running as root. The resulting `files.db` is owned by `fff-server`, so the
+`plocate` child can read it back directly.
 
 ### Observe
 
 ```bash
-# Live runtime stats (RSS, threads, index size, cache use)
-curl http://127.0.0.1:8787/api/stats | jq
-
-# cgroup pressure / current usage
+curl http://127.0.0.1:8787/api/stats | jq    # RSS, db size/mtime, last reindex
+curl http://127.0.0.1:8787/api/health | jq
 systemctl status fff-server
-systemd-cgtop -1 -n 1
 ```
-
-If `rss_bytes` trends toward `MemoryMax`, the indexed repo is large — either
-raise the cap, or keep `--content-indexing` / `--mmap-cache` off (the default)
-since those drive the bulk of optional memory.
 
 ## License
 

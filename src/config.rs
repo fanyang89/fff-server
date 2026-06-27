@@ -2,11 +2,15 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-/// RESTful API server built on top of the fff file-search engine.
+/// RESTful filename-search API server backed by a plocate database.
+///
+/// Builds and queries a dedicated plocate index for a single directory tree,
+/// refreshed periodically by `updatedb`. The index lives on disk, so a process
+/// restart never rescans.
 #[derive(Debug, Clone, Parser)]
 #[command(name = "fff-server", version, about)]
 pub struct Config {
-    /// Directory to index and serve searches over.
+    /// Root directory to index.
     #[arg(long, env = "FFF_SERVER_BASE_PATH")]
     pub base_path: PathBuf,
 
@@ -14,48 +18,44 @@ pub struct Config {
     #[arg(long, env = "FFF_SERVER_BIND", default_value = "127.0.0.1:8787")]
     pub bind: String,
 
-    /// Directory used for frecency / query-history databases.
-    #[arg(long, env = "FFF_SERVER_DB_DIR")]
-    pub db_dir: Option<PathBuf>,
+    /// Path to the plocate database (created/refreshed by updatedb).
+    #[arg(long, env = "FFF_SERVER_DB_PATH")]
+    pub db_path: Option<PathBuf>,
 
-    /// Enable AI mode (definition classification, enhanced scoring).
-    #[arg(long, env = "FFF_SERVER_AI_MODE", default_value_t = true)]
-    pub ai_mode: bool,
+    /// Override the `plocate` binary path.
+    #[arg(long, env = "FFF_SERVER_PLOCATE_BIN", default_value = "plocate")]
+    pub plocate_bin: String,
 
-    /// Watch the filesystem for live index updates.
-    #[arg(long, env = "FFF_SERVER_WATCH", default_value_t = true)]
-    pub watch: bool,
+    /// Override the `updatedb` binary path.
+    #[arg(long, env = "FFF_SERVER_UPDATEDB_BIN", default_value = "updatedb")]
+    pub updatedb_bin: String,
 
-    /// Index file contents for content-aware filtering.
-    #[arg(long, env = "FFF_SERVER_CONTENT_INDEXING", default_value_t = false)]
-    pub content_indexing: bool,
+    /// Seconds between automatic `updatedb` runs. 0 disables the interval.
+    #[arg(
+        long,
+        env = "FFF_SERVER_REINDEX_INTERVAL_SECS",
+        default_value_t = 21600
+    )]
+    pub reindex_interval_secs: u64,
 
-    /// Memory-map caches for top-frecency files after the initial scan.
-    #[arg(long, env = "FFF_SERVER_MMAP_CACHE", default_value_t = false)]
-    pub mmap_cache: bool,
-
-    /// Seconds to wait for the initial scan to finish before serving.
-    #[arg(long, env = "FFF_SERVER_WAIT_SCAN_SECS", default_value_t = 10)]
-    pub wait_scan_secs: u64,
-
-    /// Maximum number of results returned by a single search/glob call.
+    /// Maximum results returned by a single search/glob call.
     #[arg(long, env = "FFF_SERVER_MAX_RESULTS", default_value_t = 100)]
     pub max_results: usize,
 }
 
 impl Config {
-    /// Resolved database directory, defaulting to a cache dir under XDG.
-    pub fn resolved_db_dir(&self) -> PathBuf {
-        self.db_dir.clone().unwrap_or_else(|| {
-            let base = std::env::var("XDG_CACHE_HOME")
+    /// Resolved database path, defaulting next to a cache dir.
+    pub fn resolved_db_path(&self) -> PathBuf {
+        self.db_path.clone().unwrap_or_else(|| {
+            let base = std::env::var("XDG_DATA_HOME")
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| dirs_like_home().join(".cache"));
-            base.join("fff-server")
+                .unwrap_or_else(|_| home_dir().join(".local").join("share"));
+            base.join("fff-server").join("files.db")
         })
     }
 }
 
-fn dirs_like_home() -> PathBuf {
+fn home_dir() -> PathBuf {
     std::env::var("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("."))

@@ -8,36 +8,43 @@ mod state;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-use std::time::Duration;
-
 use clap::Parser;
 use config::Config;
 use routes::router;
-use state::{init_state, wait_for_scan};
+use state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,fff_search=info")),
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
 
     let cfg = Config::parse();
-    tracing::info!(bind = %cfg.bind, "starting fff-server");
+    tracing::info!(bind = %cfg.bind, "starting fff-server (plocate backend)");
 
-    let state = init_state(&cfg)?;
+    let state = AppState::new(&cfg)?;
+    tracing::info!(
+        base_path = %state.base_path.display(),
+        db_path = %state.db_path.display(),
+        "indexed root configured"
+    );
 
-    let ready = wait_for_scan(&state, Duration::from_secs(cfg.wait_scan_secs));
-    if ready {
-        tracing::info!("initial scan ready");
+    // If the plocate database doesn't exist yet, build it in the background so
+    // the server starts serving immediately (searches return empty until ready).
+    if !state.db_exists() {
+        tracing::info!("plocate database missing — starting initial build in background");
+        state.clone().trigger_reindex();
     } else {
-        tracing::warn!(
-            "initial scan did not complete within {}s; serving with partial index",
-            cfg.wait_scan_secs
-        );
+        tracing::info!("existing plocate database found — ready immediately");
     }
+
+    // Periodic reindex loop (no-op if interval is 0).
+    let _reindex_handle = state
+        .clone()
+        .spawn_reindex_interval(cfg.reindex_interval_secs);
 
     let listener = tokio::net::TcpListener::bind(&cfg.bind).await?;
     let addr = listener.local_addr()?;

@@ -1,28 +1,24 @@
-pub mod history;
-pub mod lifecycle;
+pub mod health;
+pub mod reindex;
 pub mod search;
 pub mod stats;
 
 use axum::routing::{get, post};
 use axum::Router;
+use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::openapi::ApiDoc;
 use crate::state::AppState;
-use utoipa::OpenApi;
 
 pub fn router(state: AppState) -> Router {
     let api = Router::new()
         .route("/api/search", get(search::search))
         .route("/api/glob", get(search::glob))
-        .route("/api/history", get(history::history))
-        .route("/api/track", post(history::track))
-        .route("/api/health", get(lifecycle::health))
-        .route("/api/scan-progress", get(lifecycle::scan_progress))
-        .route("/api/rescan", post(lifecycle::rescan))
-        .route("/api/refresh-git", post(lifecycle::refresh_git))
-        .route("/api/base-path", get(lifecycle::base_path))
-        .route("/api/stats", get(stats::stats));
+        .route("/api/health", get(health::health))
+        .route("/api/stats", get(stats::stats))
+        .route("/api/reindex", post(reindex::reindex))
+        .route("/api/base-path", get(health::base_path));
 
     Router::new()
         .merge(api)

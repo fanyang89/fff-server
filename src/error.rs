@@ -4,9 +4,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
-    #[error("fff engine error: {0}")]
-    Fff(#[from] fff_search::Error),
-
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -28,10 +25,7 @@ impl IntoResponse for AppError {
         let status = match &self {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
-            AppError::Fff(fff_search::Error::FilePickerMissing) => StatusCode::SERVICE_UNAVAILABLE,
-            AppError::Fff(_) | AppError::Io(_) | AppError::Internal(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+            AppError::Io(_) | AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let body = Json(json!({ "error": self.to_string() }));
         (status, body).into_response()
