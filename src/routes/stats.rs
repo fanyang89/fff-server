@@ -1,10 +1,10 @@
-use axum::extract::State;
 use axum::Json;
+use axum::extract::State;
 
 use crate::dto::{ReindexRecordDto, StatsIndex, StatsProcess, StatsResponse};
 use crate::error::Result;
 use crate::routes::health::db_meta;
-use crate::state::{proc_status, AppState};
+use crate::state::{AppState, proc_status};
 
 /// Runtime statistics: process RSS/threads, index file, last reindex run.
 #[utoipa::path(

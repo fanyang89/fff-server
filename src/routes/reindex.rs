@@ -1,6 +1,6 @@
+use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::Json;
 
 use crate::dto::ReindexResponse;
 use crate::error::Result;
@@ -19,14 +19,19 @@ use crate::state::{AppState, ReindexOutcome};
         (status = 202, description = "Already running", body = ReindexResponse),
     )
 )]
-pub async fn reindex(
-    State(state): State<AppState>,
-) -> Result<(StatusCode, Json<ReindexResponse>)> {
+pub async fn reindex(State(state): State<AppState>) -> Result<(StatusCode, Json<ReindexResponse>)> {
     match state.trigger_reindex() {
-        ReindexOutcome::Started => Ok((StatusCode::OK, Json(ReindexResponse { status: "started".into() }))),
+        ReindexOutcome::Started => Ok((
+            StatusCode::OK,
+            Json(ReindexResponse {
+                status: "started".into(),
+            }),
+        )),
         ReindexOutcome::AlreadyRunning => Ok((
             StatusCode::ACCEPTED,
-            Json(ReindexResponse { status: "already-running".into() }),
+            Json(ReindexResponse {
+                status: "already-running".into(),
+            }),
         )),
     }
 }

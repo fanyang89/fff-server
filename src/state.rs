@@ -118,11 +118,7 @@ impl AppState {
         let items = parse_paths(&raw, &self.base_path, &self.stat_cache);
         let total_returned = items.len();
         let truncated = total_returned == cap && cap > 0;
-        let paged: Vec<FileItemDto> = items
-            .into_iter()
-            .skip(offset)
-            .take(limit)
-            .collect();
+        let paged: Vec<FileItemDto> = items.into_iter().skip(offset).take(limit).collect();
         Ok(SearchResponse {
             total_matched: total_returned,
             truncated,
@@ -311,7 +307,9 @@ fn build_item(abs: &str, base_path: &Path, stat_cache: &Cache<String, bool>) -> 
     // type field), so directory-ness is determined by stat at query time and
     // memoized in `stat_cache` for the duration of the current reindex window.
     let is_dir = is_dir_cached(stat_cache, abs);
-    let abs_trimmed = abs.trim_end_matches('/').trim_end_matches(std::path::MAIN_SEPARATOR);
+    let abs_trimmed = abs
+        .trim_end_matches('/')
+        .trim_end_matches(std::path::MAIN_SEPARATOR);
     let relative = abs_trimmed
         .strip_prefix(base_path.to_string_lossy().as_ref())
         .map(|r| r.trim_start_matches('/').to_owned())
@@ -370,9 +368,15 @@ pub fn proc_status() -> io::Result<(u64, u32)> {
     let mut threads: Option<u32> = None;
     for line in content.lines() {
         if let Some(rest) = line.strip_prefix("VmRSS:") {
-            rss = rest.split_whitespace().next().and_then(|v| v.parse::<u64>().ok());
+            rss = rest
+                .split_whitespace()
+                .next()
+                .and_then(|v| v.parse::<u64>().ok());
         } else if let Some(rest) = line.strip_prefix("Threads:") {
-            threads = rest.split_whitespace().next().and_then(|v| v.parse::<u32>().ok());
+            threads = rest
+                .split_whitespace()
+                .next()
+                .and_then(|v| v.parse::<u32>().ok());
         }
         if rss.is_some() && threads.is_some() {
             break;

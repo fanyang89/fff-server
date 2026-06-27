@@ -6,12 +6,10 @@
 //! validation as the REST layer.
 
 use rmcp::{
-    ServerHandler, tool_handler,
+    ServerHandler,
     handler::server::wrapper::Parameters,
-    model::{
-        CallToolResult, Content, ErrorData, Implementation, ServerCapabilities, ServerInfo,
-    },
-    schemars, tool, tool_router,
+    model::{CallToolResult, Content, ErrorData, Implementation, ServerCapabilities, ServerInfo},
+    schemars, tool, tool_handler, tool_router,
 };
 use serde::Deserialize;
 
@@ -95,7 +93,9 @@ impl PlocateMcpHandler {
             .search(&p.query, limit, offset, p.case_insensitive, basename_only)
             .await
         {
-            Ok(resp) => Ok(CallToolResult::success(vec![Content::text(format_search(&resp))])),
+            Ok(resp) => Ok(CallToolResult::success(vec![Content::text(format_search(
+                &resp,
+            ))])),
             Err(e) => Ok(err_text(&format!("search failed: {e}"))),
         }
     }
@@ -124,7 +124,9 @@ impl PlocateMcpHandler {
             .search(&p.pattern, limit, offset, p.case_insensitive, false)
             .await
         {
-            Ok(resp) => Ok(CallToolResult::success(vec![Content::text(format_search(&resp))])),
+            Ok(resp) => Ok(CallToolResult::success(vec![Content::text(format_search(
+                &resp,
+            ))])),
             Err(e) => Ok(err_text(&format!("glob failed: {e}"))),
         }
     }
@@ -151,7 +153,11 @@ fn format_search(resp: &SearchResponse) -> String {
     out.push_str(&format!(
         "{} match(es){}\n",
         resp.total_matched,
-        if resp.truncated { " (truncated, more exist)" } else { "" }
+        if resp.truncated {
+            " (truncated, more exist)"
+        } else {
+            ""
+        }
     ));
     for it in &resp.items {
         out.push_str(&it.relative_path);
