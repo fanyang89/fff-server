@@ -2,12 +2,12 @@ name: plocate-server
 arch: amd64
 platform: linux
 version: 0.1.0
-release: 1
+release: "1"
 section: utils
 priority: optional
-maintainer: plocate-server maintainers <noreply@example.com>
+maintainer: fanyang <fanyang89@outlook.com>
 vendor: plocate-server
-homepage: https://github.com/dmtrKovalenko/fff
+homepage: https://github.com/fanyang89/plocate-server
 description: |
   RESTful filename/path search API server backed by a plocate trigram index.
   Designed for very large file trees (millions of files). Ships vendored

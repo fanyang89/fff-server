@@ -1,6 +1,6 @@
 [Unit]
 Description=plocate-server (plocate-backed filename search REST API)
-Documentation=https://github.com/dmtrKovalenko/fff
+Documentation=https://github.com/fanyang89/plocate-server
 After=network-online.target
 Wants=network-online.target
 
