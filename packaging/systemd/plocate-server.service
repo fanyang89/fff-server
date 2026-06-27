@@ -29,6 +29,8 @@ MemoryHigh=800M
 
 # Yield to the foreground service under contention.
 CPUWeight=20
+# Hard ceiling — reindex never uses more than 2 cores, even on an idle host.
+CPUQuota=200%
 Nice=19
 IOSchedulingClass=idle
 IOSchedulingPriority=7

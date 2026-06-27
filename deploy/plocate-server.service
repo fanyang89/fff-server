@@ -33,8 +33,10 @@ CapabilityBoundingSet=CAP_DAC_READ_SEARCH
 MemoryMax=1G
 MemoryHigh=800M
 
-# ===== CPU: yield under contention, no hard quota =====
+# ===== CPU: yield under contention, capped at 2 cores =====
 CPUWeight=20
+# Hard ceiling — reindex never uses more than 2 cores, even on an idle host.
+CPUQuota=200%
 
 # ===== Scheduler priority + disk IO: always defer to the foreground service =====
 Nice=19

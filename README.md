@@ -253,12 +253,14 @@ The shipped unit applies these cgroup v2 constraints (edit to taste):
 | `MemoryMax` | `1G` | Hard RSS ceiling. The server holds no index in RAM. |
 | `AmbientCapabilities` | `CAP_DAC_READ_SEARCH` | Lets `updatedb` traverse the whole tree without root. |
 | `CPUWeight` | `20` | Low weight vs default 100 — yields CPU under load. |
+| `CPUQuota` | `200%` | Hard ceiling — reindex uses at most 2 cores even when idle. |
 | `Nice` | `19` | Lowest static priority. |
 | `IOSchedulingClass` | `idle` | Disk IO only served when no one else wants it. |
 
 `Nice=19` + `IOSchedulingClass=idle` are the strongest guarantees that a busy foreground
 service is never starved; `updatedb` runs inherit these too.
-No `CPUQuota` — capacity is not wasted when the host is idle.
+`CPUQuota=200%` caps reindex at 2 cores even on an idle host; `CPUWeight`/`Nice` still
+yield under contention.
 
 ### Permissions
 
