@@ -31,6 +31,9 @@ rmcp = { version = "1.7", features = ["server", "macros", "transport-streamable-
 
 nucleo-matcher = "0.3"
 
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+
 [workspace]
 members = [".", "bench"]
 resolver = "2"

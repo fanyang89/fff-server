@@ -11,7 +11,7 @@ use axum::routing::{get, post};
 use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config as SwaggerConfig, SwaggerUi};
 
 use crate::mcp::PlocateMcpHandler;
 use crate::openapi::ApiDoc;
@@ -37,10 +37,10 @@ pub fn router(state: AppState) -> Router {
             }
         });
 
-    // The SwaggerUi `url()` argument is what the swagger-ui *frontend*
-    // (running in the browser) fetches, so it must be the absolute public
-    // path to the spec — including the mount prefix. Without the prefix the
-    // UI loads but fails to fetch `/openapi.json` (404) when nested.
+    // `SwaggerUi::url()` both registers the in-process JSON route and seeds
+    // the browser config. Keep the registered route relative to `inner` so
+    // axum's outer `nest(prefix, inner)` exposes it at `{prefix}/openapi.json`;
+    // override the browser-facing config with the public prefixed path.
     let openapi_json_path = if prefix.is_empty() {
         "/openapi.json".to_string()
     } else {
@@ -62,10 +62,14 @@ pub fn router(state: AppState) -> Router {
         .route("/api/base-path", get(health::base_path))
         .route("/api/file-server", get(health::file_server))
         .route("/api/feedback", get(health::feedback))
-        .merge(SwaggerUi::new("/swagger-ui").url(
-            openapi_json_path,
-            ApiDoc::openapi_with_server(openapi_server.as_deref()),
-        ));
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url(
+                    "/openapi.json",
+                    ApiDoc::openapi_with_server(openapi_server.as_deref()),
+                )
+                .config(SwaggerConfig::new([openapi_json_path])),
+        );
 
     // MCP / Streamable HTTP endpoint — shares the same engine/state as REST.
     let mcp_state = state.clone();
@@ -95,5 +99,79 @@ pub fn router(state: AppState) -> Router {
             .nest(&prefix, inner)
             .fallback(frontend::frontend_fallback)
             .with_state(state)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::router;
+    use crate::config::Config;
+    use crate::state::AppState;
+    use axum::body::{Body, to_bytes};
+    use axum::http::{Request, StatusCode};
+    use serde_json::Value;
+    use tower::ServiceExt;
+
+    fn test_config(public_base_url: Option<&str>) -> Config {
+        Config {
+            base_path: std::env::temp_dir(),
+            bind: String::from("127.0.0.1:0"),
+            db_path: Some(std::env::temp_dir().join("plocate-server-routes-test.db")),
+            plocate_bin: String::from("plocate"),
+            updatedb_bin: String::from("updatedb"),
+            max_results: 100,
+            max_concurrent_searches: 8,
+            search_timeout_secs: 10,
+            queue_timeout_secs: 5,
+            fuzzy_candidate_cap: 1000,
+            invalidate_stat_cache_on_reindex: true,
+            updatedb_timeout_secs: 3600,
+            file_server_url: None,
+            feedback_email: None,
+            instance_name: String::from("plocate"),
+            public_base_url: public_base_url.map(str::to_owned),
+        }
+    }
+
+    async fn get(path: &str, public_base_url: Option<&str>) -> (StatusCode, Vec<u8>) {
+        let state = AppState::new(&test_config(public_base_url)).unwrap();
+        let response = router(state)
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let status = response.status();
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .to_vec();
+        (status, body)
+    }
+
+    fn assert_openapi_json(status: StatusCode, body: &[u8]) {
+        assert_eq!(status, StatusCode::OK);
+        let json: Value = serde_json::from_slice(body).unwrap();
+        let version = json.get("openapi").and_then(Value::as_str).unwrap();
+        assert!(version.starts_with("3."));
+    }
+
+    #[tokio::test]
+    async fn root_openapi_json_serves_spec() {
+        let (status, body) = get("/openapi.json", None).await;
+        assert_openapi_json(status, &body);
+    }
+
+    #[tokio::test]
+    async fn prefixed_openapi_json_serves_spec() {
+        let (status, body) = get("/search/openapi.json", Some("/search")).await;
+        assert_openapi_json(status, &body);
+    }
+
+    #[tokio::test]
+    async fn prefixed_swagger_ui_fetches_prefixed_spec() {
+        let (status, body) =
+            get("/search/swagger-ui/swagger-initializer.js", Some("/search")).await;
+        assert_eq!(status, StatusCode::OK);
+        let js = String::from_utf8(body).unwrap();
+        assert!(js.contains("/search/openapi.json"));
     }
 }
