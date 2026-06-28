@@ -1,3 +1,4 @@
+import i18n from "@/i18n"
 import { withPrefix } from "@/lib/config"
 
 export type FileItem = {
@@ -83,12 +84,12 @@ export async function fetchSearch(
     })
   } catch (e) {
     if ((e as Error).name === "AbortError") throw e
-    throw new SearchError("无法连接到搜索服务", true)
+    throw new SearchError(i18n.t("errors.searchConnect"), true)
   }
 
   if (!res.ok) {
     const retryable = res.status >= 500 || res.status === 429
-    let detail = `请求失败 (${res.status})`
+    let detail = i18n.t("errors.requestFailed", { status: res.status })
     try {
       const body = await res.json()
       if (body?.error) detail = body.error
@@ -101,7 +102,7 @@ export async function fetchSearch(
   try {
     return (await res.json()) as SearchResponse
   } catch {
-    throw new SearchError("响应解析失败", false)
+    throw new SearchError(i18n.t("errors.parseFailed"), false)
   }
 }
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import i18n from "@/i18n"
 import { fetchSearch, type SearchResponse } from "@/api"
 
 export type SearchStatus =
@@ -63,7 +64,7 @@ export function useSearch(debouncedQuery: string) {
         if (cancelled) return
         if ((e as Error).name === "AbortError") return
         const msg =
-          e instanceof Error ? e.message : "搜索时发生未知错误"
+          e instanceof Error ? e.message : i18n.t("errors.searchUnknown")
         setState((s) => ({
           status: "error",
           data: s.data,
