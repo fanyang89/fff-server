@@ -1,4 +1,3 @@
-use std::cmp::Reverse;
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -11,9 +10,6 @@ use tokio::process::Command;
 use tokio::sync::Semaphore;
 
 use moka::sync::Cache;
-
-use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
-use nucleo_matcher::{Matcher, Utf32Str};
 
 use crate::config::Config;
 use crate::dto::{FileItemDto, SearchResponse};
@@ -323,34 +319,13 @@ impl AppState {
         .await
         .map_err(|e| AppError::Internal(format!("parse_paths join error: {e}")))?;
         let truncated = items.len() >= cap || stat_truncated;
-        // Rank with nucleo. match_paths() tunes scoring for path-like input
-        // (prefers prefix/segment matches over mid-word matches).
-        let mut matcher = Matcher::new(nucleo_matcher::Config::DEFAULT.match_paths());
-        let case = if case_insensitive {
-            CaseMatching::Ignore
-        } else {
-            CaseMatching::Respect
-        };
-        let pattern = Pattern::parse(query, case, Normalization::Smart);
-        let mut scored: Vec<(u32, FileItemDto)> = items
-            .into_iter()
-            .filter_map(|mut it| {
-                let haystack = Utf32Str::Ascii(it.relative_path.as_bytes());
-                pattern.score(haystack, &mut matcher).map(|s| {
-                    it.score = Some(s);
-                    (s, it)
-                })
-            })
-            .collect();
-        // Sort by score descending; stable, so ties keep plocate's order.
-        scored.sort_by_key(|(s, _)| Reverse(*s));
-        let total_matched = scored.len();
-        let paged: Vec<FileItemDto> = scored
-            .into_iter()
-            .skip(offset)
-            .take(limit)
-            .map(|(_, it)| it)
-            .collect();
+        // Re-rank the recalled candidates with the basename-centric fused
+        // scorer. The gate inside `rank::rerank` preserves the legacy "every
+        // token must fuzzy-match the path" filter; structural signals (depth,
+        // hidden, junk) and basename match strength then reorder the survivors.
+        let ranked = crate::rank::rerank(query, case_insensitive, items);
+        let total_matched = ranked.len();
+        let paged: Vec<FileItemDto> = ranked.into_iter().skip(offset).take(limit).collect();
         if let Some(t) = &self.trending {
             t.record(query);
         }

@@ -4,6 +4,7 @@ mod error;
 mod limits;
 mod mcp;
 mod openapi;
+mod rank;
 mod routes;
 mod state;
 mod trending;
