@@ -151,3 +151,38 @@ tasks:
       - file "{{.BIN}}"
       - du -h "{{.BIN}}"
       - sh -c "ldd '{{.BIN}}' 2>&1 || true"
+
+  # --------------------------------------------------------------------
+  # Load testing harness (bench/ workspace member). Build the dataset
+  # once, start the server against it, then drive load with `bench-baseline`
+  # (constant RPS) or `bench-saturate` (constant concurrency).
+  # --------------------------------------------------------------------
+
+  bench-data:
+    desc: "Generate a synthetic artifact-tree index (size: 10k|100k|1m)"
+    sources:
+      - bench/data/generate.sh
+    generates:
+      - bench/data/tree/**/*
+      - bench/data/files.db
+      - bench/data/queries.txt
+    cmds:
+      - bash bench/data/generate.sh {{.CLI_ARGS}}
+
+  bench-serve:
+    desc: Run server against the bench index (foreground; needs bench-data)
+    preconditions:
+      - sh: test -f bench/data/files.db
+        msg: "index missing; run: task bench-data -- 10k|100k|1m first"
+    cmds:
+      - cargo run --release -- {{.BENCH_SERVER_ARGS}}
+
+  bench-baseline:
+    desc: "Constant-RPS latency test (pass --rate N --duration D)"
+    cmds:
+      - cargo run --release -p bench -- --url http://127.0.0.1:8787 --queries bench/data/queries.txt {{.CLI_ARGS}}
+
+  bench-saturate:
+    desc: "Constant-concurrency saturation test (pass --concurrency N --duration D)"
+    cmds:
+      - cargo run --release -p bench -- --url http://127.0.0.1:8787 --queries bench/data/queries.txt {{.CLI_ARGS}}
