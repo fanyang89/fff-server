@@ -63,6 +63,11 @@ pub struct AppState {
     /// nothing) was given — clients then derive absolute URLs from their own
     /// origin at runtime.
     pub base_url_public: Arc<Option<String>>,
+    /// Prefix-rewritten index.html bytes, computed once at startup when the
+    /// server is mounted under a non-empty base URL prefix. None when the
+    /// prefix is empty OR the frontend has not been built (served verbatim
+    /// / "not built" path respectively).
+    pub index_html_override: Arc<Option<Vec<u8>>>,
 }
 
 /// Parsed `--public-base-url` value.
@@ -185,6 +190,9 @@ impl AppState {
             updatedb_timeout: Duration::from_secs(cfg.updatedb_timeout_secs),
             base_url_prefix: Arc::new(parsed.prefix.clone()),
             base_url_public: Arc::new(parsed.public_url.clone()),
+            index_html_override: Arc::new(crate::routes::frontend::rewrite_index_html(
+                &parsed.prefix,
+            )),
         })
     }
 
@@ -716,7 +724,7 @@ pub fn proc_status() -> io::Result<(u64, u32)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cache, BaseUrlConfig, ReindexGuard, enrich_glob, parse_base_url, parse_paths};
+    use super::{BaseUrlConfig, Cache, ReindexGuard, enrich_glob, parse_base_url, parse_paths};
     use nucleo_matcher::Matcher;
     use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
     use nucleo_matcher::{Config, Utf32Str};
@@ -851,17 +859,17 @@ mod tests {
 
     #[test]
     fn parse_base_url_bare_path_normalizes() {
-        assert_eq!(
-            parse_base_url(Some("/search")).prefix.as_str(),
-            "/search"
-        );
+        assert_eq!(parse_base_url(Some("/search")).prefix.as_str(), "/search");
         // No leading slash, trailing slash, surrounding whitespace — all
         // collapse to the same normalized form.
         assert_eq!(parse_base_url(Some("search")).prefix, "/search");
         assert_eq!(parse_base_url(Some("/search/")).prefix, "/search");
         assert_eq!(parse_base_url(Some(" /search/ ")).prefix, "/search");
         // Multi-segment prefix is preserved.
-        assert_eq!(parse_base_url(Some("/tools/search")).prefix, "/tools/search");
+        assert_eq!(
+            parse_base_url(Some("/tools/search")).prefix,
+            "/tools/search"
+        );
         // Bare slash → root mount (empty prefix).
         assert_eq!(parse_base_url(Some("/")).prefix, "");
         assert!(parse_base_url(Some("/search")).public_url.is_none());
