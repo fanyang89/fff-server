@@ -1,0 +1,40 @@
+import i18n from "i18next"
+import LanguageDetector from "i18next-browser-languagedetector"
+import { initReactI18next } from "react-i18next"
+
+import zhCN from "@/locales/zh-CN/translation.json"
+import en from "@/locales/en/translation.json"
+
+export const SUPPORTED_LANGUAGES = ["zh-CN", "en"] as const
+export type Language = (typeof SUPPORTED_LANGUAGES)[number]
+export const DEFAULT_LANGUAGE: Language = "zh-CN"
+export const LANGUAGE_STORAGE_KEY = "lang"
+
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources: {
+      "zh-CN": { translation: zhCN },
+      en: { translation: en },
+    },
+    fallbackLng: DEFAULT_LANGUAGE,
+    supportedLngs: [...SUPPORTED_LANGUAGES],
+    nonExplicitSupportedLngs: true,
+    interpolation: {
+      escapeValue: false,
+    },
+    detection: {
+      order: ["localStorage", "navigator"],
+      lookupLocalStorage: LANGUAGE_STORAGE_KEY,
+      caches: ["localStorage"],
+    },
+  })
+
+i18n.on("languageChanged", (lng) => {
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = lng
+  }
+})
+
+export default i18n

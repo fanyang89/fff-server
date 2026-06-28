@@ -1,0 +1,150 @@
+{
+  "app": {
+    "title": "plocate-web · File Search",
+    "brand": "plocate-web"
+  },
+  "nav": {
+    "home": "File Server",
+    "apiDocs": "API Docs"
+  },
+  "search": {
+    "placeholder": "Enter a file name or path fragment…",
+    "ariaSearch": "Search files",
+    "ariaClear": "Clear",
+    "shortcut": "⌘K"
+  },
+  "results": {
+    "idle": "Type a keyword to start searching",
+    "retry": "Retry",
+    "empty": "No matching results",
+    "loading": "Searching…"
+  },
+  "status": {
+    "count_one": "{{count}} item",
+    "count_other": "{{count}} items",
+    "truncated": "Results truncated — refine your query"
+  },
+  "footer": {
+    "connecting": "Connecting",
+    "online": "Online",
+    "offline": "Offline",
+    "indexing": "Index updating",
+    "indexedAt": "Indexed {{time}}"
+  },
+  "feedback": {
+    "trigger": "Feedback",
+    "title": "Feedback",
+    "subject": "[plocate-web] Feedback",
+    "description": "Report bugs, suggest ideas, or share your experience.",
+    "recipientLabel": "Recipient",
+    "bodyLabel": "Message (optional, included in the email body)",
+    "bodyPlaceholder": "Describe the issue or your idea…",
+    "send": "Send Email",
+    "mailtoHint": "If your mail app doesn't open, copy the address above into your webmail."
+  },
+  "install": {
+    "trigger": "Connect to Agent",
+    "title": "Connect to an Agent",
+    "description": "Add this instance's file search capability to opencode / Claude Code / Codex.",
+    "instanceInfo": "Instance",
+    "name": "Name",
+    "endpoint": "MCP Endpoint",
+    "scope": "Index Scope",
+    "placeholderEndpoint": "…",
+    "installTarget": "Install Target",
+    "agentLabel": "Agent",
+    "targetLabel": "Install to",
+    "tabMcp": "MCP Command",
+    "tabJson": "mcpServers JSON",
+    "copyHint": "Copy into your terminal (MCP command) or merge into the matching config file (JSON).",
+    "mcpDocs": "MCP Docs",
+    "generating": "(waiting to generate)",
+    "agents": {
+      "opencode": { "label": "opencode", "hint": "native mcp add" },
+      "claude": { "label": "Claude Code", "hint": "--transport http" },
+      "codex": { "label": "Codex", "hint": "native mcp add" },
+      "generic": { "label": "Generic", "hint": "endpoint only" }
+    },
+    "targets": {
+      "global": "Global",
+      "project": "Current project"
+    }
+  },
+  "maintenance": {
+    "trigger": "Maintenance",
+    "title": "Maintenance",
+    "description": "Inspect index status and trigger a rebuild manually.",
+    "currentState": "Current Status",
+    "stateUnavailable": "Unable to fetch status",
+    "stateReindexing": "Index updating…",
+    "stateIdle": "Idle",
+    "dbInfo": "Database {{time}} · {{size}}",
+    "lastRebuild": "Last Rebuild",
+    "noRecord": "No record",
+    "rebuildSuccess": "Success",
+    "rebuildFailed": "Failed",
+    "lastRebuildInfo": "{{time}} · took {{dur}}",
+    "reindexingBtn": "Updating…",
+    "reindexNow": "Rebuild Index Now",
+    "noticeStarted": "Index rebuild started",
+    "noticeAlreadyRunning": "A rebuild is already in progress",
+    "noticeFailed": "Trigger failed, please retry later"
+  },
+  "syntax": {
+    "aria": "Search syntax",
+    "tooltip": "Search syntax",
+    "title": "Search Syntax",
+    "description": "Indexing is backed by plocate. The following rules define how your input is parsed.",
+    "rulesHeading": "Matching Rules",
+    "examplesHeading": "Examples",
+    "currentBehavior": "Current UI Behavior",
+    "caseInsensitive": "Case: insensitive",
+    "fullPath": "Scope: full path",
+    "limit100": "Limit: 100 items",
+    "apiParamsHint": "More parameters (limit / offset / case) can be overridden via the <0>{{code}}</0> query params — see the API docs.",
+    "rules": {
+      "multiKeyword": {
+        "title": "Multi-keyword fuzzy search",
+        "desc": "Multiple space-separated keywords must all match (order-independent); results are ranked by relevance."
+      },
+      "glob": {
+        "title": "Glob parsing when wildcards are present",
+        "desc": "If the input contains any of * ? [ ], it is treated as a glob and matched anywhere in the path; leading / anchors to the path root."
+      }
+    },
+    "examples": {
+      "substring": "Path contains this substring",
+      "rustFiles": "All Rust source files",
+      "rustJson": "Path contains rust…json anywhere, e.g. .rustc_info.json",
+      "logs": "Logs under any 2024 directory",
+      "etcConf": "Only .conf files under /etc",
+      "configJson": "Contains both config and json (any order)"
+    }
+  },
+  "format": {
+    "unknown": "Unknown",
+    "justNow": "just now",
+    "minutesAgo_one": "{{count}} minute ago",
+    "minutesAgo_other": "{{count}} minutes ago",
+    "hoursAgo_one": "{{count}} hour ago",
+    "hoursAgo_other": "{{count}} hours ago",
+    "daysAgo_one": "{{count}} day ago",
+    "daysAgo_other": "{{count}} days ago",
+    "durationSeconds_one": "{{sec}} second",
+    "durationSeconds_other": "{{sec}} seconds",
+    "durationMinutesSeconds": "{{min}} min {{sec}} sec",
+    "durationMinutes_one": "{{min}} min",
+    "durationMinutes_other": "{{min}} min"
+  },
+  "errors": {
+    "searchConnect": "Cannot reach the search service",
+    "requestFailed": "Request failed ({{status}})",
+    "parseFailed": "Failed to parse response",
+    "searchUnknown": "Unknown error during search"
+  },
+  "language": {
+    "switch": "Language",
+    "zhCN": "中文",
+    "en": "English"
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "app": {
+    "title": "plocate-web · 文件搜索",
+    "brand": "plocate-web"
+  },
+  "nav": {
+    "home": "文件服务主站",
+    "apiDocs": "API 文档"
+  },
+  "search": {
+    "placeholder": "输入文件名或路径片段…",
+    "ariaSearch": "搜索文件",
+    "ariaClear": "清除",
+    "shortcut": "⌘K"
+  },
+  "results": {
+    "idle": "输入关键字开始搜索",
+    "retry": "重试",
+    "empty": "无匹配结果",
+    "loading": "搜索中…"
+  },
+  "status": {
+    "count": "共 {{count}} 项",
+    "truncated": "结果已截断，请细化查询"
+  },
+  "footer": {
+    "connecting": "连接中",
+    "online": "在线",
+    "offline": "离线",
+    "indexing": "索引更新中",
+    "indexedAt": "索引 {{time}}"
+  },
+  "feedback": {
+    "trigger": "反馈问题",
+    "title": "反馈问题",
+    "subject": "[plocate-web] 反馈",
+    "description": "欢迎报告 bug、提出建议或反馈体验。",
+    "recipientLabel": "收件地址",
+    "bodyLabel": "内容（可选，会带入邮件正文）",
+    "bodyPlaceholder": "描述你遇到的问题或想法…",
+    "send": "发送邮件",
+    "mailtoHint": "点击后若未弹出邮件应用，可手动复制上方地址至网页邮箱。"
+  },
+  "install": {
+    "trigger": "接入 Agent",
+    "title": "接入到 Agent",
+    "description": "把本实例的文件搜索能力装进 opencode / Claude Code / Codex。",
+    "instanceInfo": "实例信息",
+    "name": "名称",
+    "endpoint": "MCP 端点",
+    "scope": "索引范围",
+    "placeholderEndpoint": "…",
+    "installTarget": "安装目标",
+    "agentLabel": "Agent",
+    "targetLabel": "安装到",
+    "tabMcp": "MCP 命令",
+    "tabJson": "mcpServers JSON",
+    "copyHint": "复制后粘贴到终端执行（MCP 命令）或合并进对应配置文件（JSON）。",
+    "mcpDocs": "MCP 文档",
+    "generating": "（等待生成）",
+    "agents": {
+      "opencode": { "label": "opencode", "hint": "原生 mcp add" },
+      "claude": { "label": "Claude Code", "hint": "--transport http" },
+      "codex": { "label": "Codex", "hint": "原生 mcp add" },
+      "generic": { "label": "通用", "hint": "仅给端点" }
+    },
+    "targets": {
+      "global": "全局",
+      "project": "当前项目"
+    }
+  },
+  "maintenance": {
+    "trigger": "维护",
+    "title": "维护",
+    "description": "查看索引状态并手动触发重建。",
+    "currentState": "当前状态",
+    "stateUnavailable": "无法获取状态",
+    "stateReindexing": "索引更新中…",
+    "stateIdle": "空闲",
+    "dbInfo": "数据库 {{time}} · {{size}}",
+    "lastRebuild": "上次重建",
+    "noRecord": "无记录",
+    "rebuildSuccess": "成功",
+    "rebuildFailed": "失败",
+    "lastRebuildInfo": "{{time}} · 耗时 {{dur}}",
+    "reindexingBtn": "更新中…",
+    "reindexNow": "立即重建索引",
+    "noticeStarted": "已开始重建索引",
+    "noticeAlreadyRunning": "已有重建任务在进行中",
+    "noticeFailed": "触发失败，请稍后重试"
+  },
+  "syntax": {
+    "aria": "搜索语法",
+    "tooltip": "搜索语法",
+    "title": "搜索语法",
+    "description": "底层由 plocate 提供索引检索，以下规则决定输入如何被解析。",
+    "rulesHeading": "匹配规则",
+    "examplesHeading": "示例",
+    "currentBehavior": "当前界面行为",
+    "caseInsensitive": "大小写：不敏感",
+    "fullPath": "范围：全路径",
+    "limit100": "上限：100 条",
+    "apiParamsHint": "更多参数（limit / offset / case）可通过 <0>{{code}}</0> 查询参数覆盖，详见 API 文档。",
+    "rules": {
+      "multiKeyword": {
+        "title": "多关键字模糊搜索",
+        "desc": "空格分隔的多个关键字需同时命中，顺序不限，结果按相关性排序。"
+      },
+      "glob": {
+        "title": "含通配符时按 glob 解析",
+        "desc": "输入中出现 * ? [ ] 之一即作为 glob 模式，默认在路径任意位置匹配；以 / 开头可锚定到路径根。"
+      }
+    },
+    "examples": {
+      "substring": "路径中包含此子串",
+      "rustFiles": "所有 Rust 源文件",
+      "rustJson": "路径任意位置含 rust…json，如 .rustc_info.json",
+      "logs": "任意层级 2024 目录下的日志",
+      "etcConf": "仅 /etc 目录下的 .conf 文件",
+      "configJson": "同时含 config 和 json（顺序不限）"
+    }
+  },
+  "format": {
+    "unknown": "未知",
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}} 分钟前",
+    "hoursAgo": "{{count}} 小时前",
+    "daysAgo": "{{count}} 天前",
+    "durationSeconds": "{{sec}} 秒",
+    "durationMinutesSeconds": "{{min}} 分 {{sec}} 秒",
+    "durationMinutes": "{{min}} 分"
+  },
+  "errors": {
+    "searchConnect": "无法连接到搜索服务",
+    "requestFailed": "请求失败 ({{status}})",
+    "parseFailed": "响应解析失败",
+    "searchUnknown": "搜索时发生未知错误"
+  },
+  "language": {
+    "switch": "语言",
+    "zhCN": "中文",
+    "en": "English"
+  }
+}
