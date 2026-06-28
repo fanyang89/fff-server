@@ -2,6 +2,7 @@ import { Check, Languages } from "lucide-react"
 import { DropdownMenu } from "radix-ui"
 import { useTranslation } from "react-i18next"
 import i18n, { SUPPORTED_LANGUAGES, type Language } from "@/i18n"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const LANG_LABELS: Record<Language, string> = {
@@ -16,14 +17,15 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1"
           aria-label={i18n.t("language.switch")}
-          className="inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50"
         >
           <Languages className="size-3.5" />
           {current ? LANG_LABELS[current] : "中文"}
-        </button>
+        </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content

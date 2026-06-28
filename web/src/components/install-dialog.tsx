@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Check, Copy, ExternalLink, Plug } from "lucide-react"
+import { Check, Copy, ExternalLink } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,7 +8,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { withPrefix } from "@/lib/config"
@@ -28,6 +27,8 @@ interface InstallDialogProps {
   instanceName: string
   /** Indexed root from /api/health. null while health is still loading. */
   basePath: string | null
+  open: boolean
+  onOpenChange: (v: boolean) => void
 }
 
 const AGENT_VALUES: Agent[] = ["opencode", "claude", "codex", "generic"]
@@ -37,9 +38,13 @@ const TAB_VALUES: { value: Tab; labelKey: string }[] = [
   { value: "json", labelKey: "install.tabJson" },
 ]
 
-export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
+export function InstallDialog({
+  instanceName,
+  basePath,
+  open,
+  onOpenChange,
+}: InstallDialogProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
   const [agent, setAgent] = useState<Agent>("opencode")
   const [target, setTarget] = useState<Target>("global")
   const [tab, setTab] = useState<Tab>("mcp")
@@ -84,13 +89,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Plug className="size-4" />
-          {t("install.trigger")}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl sm:max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("install.title")}</DialogTitle>

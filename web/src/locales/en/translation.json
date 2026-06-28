@@ -1,11 +1,13 @@
 {
   "app": {
     "title": "plocate-web · File Search",
+    "titleSuffix": "File Search",
     "brand": "plocate-web"
   },
   "nav": {
     "home": "File Server",
-    "apiDocs": "API Docs"
+    "apiDocs": "API Docs",
+    "more": "More"
   },
   "search": {
     "placeholder": "Enter a file name or path fragment…",

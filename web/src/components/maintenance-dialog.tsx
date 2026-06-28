@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   LoaderCircle,
   RefreshCw,
-  Wrench,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { triggerReindex } from "@/api"
@@ -16,14 +15,18 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { useStats } from "@/hooks/use-stats"
 import { formatBytes, formatDuration, formatRelativeTime } from "@/lib/format"
 
-export function MaintenanceDialog() {
+export function MaintenanceDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+}) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
   const { data, error } = useStats(open)
   const [triggering, setTriggering] = useState(false)
   const [notice, setNotice] = useState<{
@@ -67,13 +70,7 @@ export function MaintenanceDialog() {
   const last = data?.last_reindex ?? null
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Wrench className="size-4" />
-          {t("maintenance.trigger")}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("maintenance.title")}</DialogTitle>

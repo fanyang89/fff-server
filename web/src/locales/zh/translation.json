@@ -1,11 +1,13 @@
 {
   "app": {
     "title": "plocate-web · 文件搜索",
+    "titleSuffix": "文件搜索",
     "brand": "plocate-web"
   },
   "nav": {
     "home": "文件服务主站",
-    "apiDocs": "API 文档"
+    "apiDocs": "API 文档",
+    "more": "更多"
   },
   "search": {
     "placeholder": "输入文件名或路径片段…",
