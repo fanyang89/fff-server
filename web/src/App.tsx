@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Code, Globe } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Footer } from "@/components/footer"
+import { LanguageSwitcher } from "@/components/language-switcher"
 import { MaintenanceDialog } from "@/components/maintenance-dialog"
 import { InstallDialog } from "@/components/install-dialog"
 import { Results } from "@/components/results"
@@ -14,8 +15,12 @@ import { useHealth } from "@/hooks/use-health"
 import { useSearch } from "@/hooks/use-search"
 
 export default function App() {
-  const { t } = useTranslation()
+  const { t, i18n: i18nInstance } = useTranslation()
   const [query, setQuery] = useState("")
+
+  useEffect(() => {
+    document.title = t("app.title")
+  }, [t, i18nInstance.resolvedLanguage])
   const debounced = useDebounce(query, 300)
   const { state, refetch } = useSearch(debounced)
   const health = useHealth()
@@ -40,6 +45,7 @@ export default function App() {
               {t("nav.apiDocs")}
             </a>
           </Button>
+          <LanguageSwitcher />
           <MaintenanceDialog />
           <InstallDialog
             instanceName={health.data?.instance_name ?? "plocate"}
