@@ -29,7 +29,7 @@ pub struct AppState {
     pub max_results: usize,
     pub file_server_url: Arc<Option<String>>,
     pub feedback_email: Arc<Option<String>>,
-    /// Skill/MCP instance name surfaced via /api/health and the install wizard.
+    /// Skill/MCP instance name surfaced via /api/health and the web UI.
     pub instance_name: Arc<String>,
     /// Per-path `is_dir` cache (stat results). Keyed by absolute path; values
     /// are valid for the current reindex window — cleared on reindex completion.

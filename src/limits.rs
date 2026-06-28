@@ -31,8 +31,7 @@ pub fn validate_offset(req: Option<usize>) -> Result<usize> {
 
 /// Validate a skill/MCP instance name. Must match `^[a-z0-9]+(-[a-z0-9]+)*$`,
 /// 1..=MAX_NAME_LEN chars, no leading/trailing/double hyphens. The same rule
-/// is enforced server-side in the install endpoints and at startup for the
-/// `--instance-name` flag.
+/// is enforced at startup for the `--instance-name` flag.
 pub fn validate_skill_name(name: &str) -> Result<()> {
     if name.is_empty() || name.len() > MAX_NAME_LEN {
         return Err(AppError::BadRequest(format!(

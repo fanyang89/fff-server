@@ -69,10 +69,10 @@ pub struct Config {
     #[arg(long, env = "PLOCATE_SERVER_FEEDBACK_EMAIL")]
     pub feedback_email: Option<String>,
 
-    /// Skill/MCP instance name surfaced in the install wizard and used as the
-    /// default name in generated `opencode mcp add` / `codex mcp add` commands.
-    /// Must match `^[a-z0-9]+(-[a-z0-9]+)*$` (1-64 chars, lowercase alphanum +
-    /// single hyphens). Defaults to "plocate".
+    /// Skill/MCP instance name surfaced in the web UI install dialog and used
+    /// as the default name in generated `opencode mcp add` / `codex mcp add`
+    /// commands. Must match `^[a-z0-9]+(-[a-z0-9]+)*$` (1-64 chars, lowercase
+    /// alphanum + single hyphens). Defaults to "plocate".
     #[arg(long, env = "PLOCATE_SERVER_INSTANCE_NAME", default_value = "plocate")]
     pub instance_name: String,
 }

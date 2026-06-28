@@ -14,7 +14,6 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": "http://127.0.0.1:8787",
-      "/install": "http://127.0.0.1:8787",
       "/swagger-ui": "http://127.0.0.1:8787",
       "/openapi.json": "http://127.0.0.1:8787",
     },

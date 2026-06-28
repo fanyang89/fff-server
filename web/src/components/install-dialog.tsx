@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import {
-  Check,
-  Copy,
-  ExternalLink,
-  Plug,
-  Terminal,
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Check, Copy, ExternalLink, Plug } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -24,12 +17,9 @@ import {
   type Target,
   buildMcpAddCommand,
   buildMcpServersJson,
-  buildOneLiner,
-  fetchSkillMarkdown,
 } from "@/lib/install"
 
-type Mode = "auto" | "manual"
-type Tab = "skill" | "mcp" | "json"
+type Tab = "mcp" | "json"
 
 interface InstallDialogProps {
   /** Skill/MCP instance name from /api/health. Always set after first load. */
@@ -39,9 +29,9 @@ interface InstallDialogProps {
 }
 
 const AGENTS: { value: Agent; label: string; hint: string }[] = [
-  { value: "opencode", label: "opencode", hint: "~/.agents/skills" },
-  { value: "claude", label: "Claude Code", hint: "~/.claude/skills" },
-  { value: "codex", label: "Codex", hint: "~/.agents/skills" },
+  { value: "opencode", label: "opencode", hint: "原生 mcp add" },
+  { value: "claude", label: "Claude Code", hint: "--transport http" },
+  { value: "codex", label: "Codex", hint: "原生 mcp add" },
   { value: "generic", label: "通用", hint: "仅给端点" },
 ]
 
@@ -50,32 +40,22 @@ const TARGETS: { value: Target; label: string }[] = [
   { value: "project", label: "当前项目" },
 ]
 
-const MODES: { value: Mode; label: string }[] = [
-  { value: "auto", label: "一键安装" },
-  { value: "manual", label: "手动安装" },
-]
-
 const TABS: { value: Tab; label: string }[] = [
-  { value: "skill", label: "SKILL.md" },
   { value: "mcp", label: "MCP 命令" },
   { value: "json", label: "mcpServers JSON" },
 ]
 
 export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
   const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<Mode>("auto")
   const [agent, setAgent] = useState<Agent>("opencode")
   const [target, setTarget] = useState<Target>("global")
-  const [tab, setTab] = useState<Tab>("skill")
-  const [copied, setCopied] = useState<string | null>(null)
-  const [skillMd, setSkillMd] = useState<string>("")
+  const [tab, setTab] = useState<Tab>("mcp")
+  const [copied, setCopied] = useState(false)
   const [origin, setOrigin] = useState("")
 
   const ready = basePath !== null
   const url = origin ? `${origin}/mcp` : ""
-  const scope = basePath ?? ""
 
-  // Resolve origin once the dialog mounts ( SSR-safe no-op ).
   useEffect(() => {
     if (!open) return
     if (typeof window === "undefined") return
@@ -83,34 +63,10 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
   }, [open])
 
   const params: InstallParams = useMemo(
-    () => ({
-      name: instanceName,
-      url,
-      scope,
-      notes: "",
-      agent,
-      target,
-    }),
-    [instanceName, url, scope, agent, target],
+    () => ({ name: instanceName, url, agent, target }),
+    [instanceName, url, agent, target],
   )
 
-  // Live-preview SKILL.md only when the user is looking at it.
-  useEffect(() => {
-    if (!open || mode !== "manual" || tab !== "skill" || !ready) {
-      setSkillMd("")
-      return
-    }
-    const ctrl = new AbortController()
-    fetchSkillMarkdown(origin, params, ctrl.signal).then((md) =>
-      setSkillMd(md ?? ""),
-    )
-    return () => ctrl.abort()
-  }, [open, mode, tab, ready, origin, params])
-
-  const oneLiner = useMemo(
-    () => (ready && origin ? buildOneLiner(origin, params) : ""),
-    [ready, origin, params],
-  )
   const mcpCmd = useMemo(
     () => (ready ? buildMcpAddCommand(params) : ""),
     [ready, params],
@@ -120,14 +76,14 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
     [ready, params],
   )
 
-  const sharesAgentsPath = agent === "opencode" || agent === "codex"
+  const current = tab === "mcp" ? mcpCmd : jsonSnippet
 
-  const copy = async (key: string, text: string) => {
+  const copy = async (text: string) => {
     if (!text) return
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(key)
-      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
     } catch {
       // clipboard unavailable
     }
@@ -156,10 +112,10 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
               <span className="text-muted-foreground">名称</span>
               <code className="font-mono">{instanceName || "plocate"}</code>
               <span className="text-muted-foreground">MCP 端点</span>
-              <code className="font-mono break-all">{url || "…"}</code>
+              <code className="min-w-0 break-all font-mono">{url || "…"}</code>
               <span className="text-muted-foreground">索引范围</span>
               {ready ? (
-                <code className="font-mono break-all">{basePath}</code>
+                <code className="min-w-0 break-all font-mono">{basePath}</code>
               ) : (
                 <Skeleton className="h-4 w-40" />
               )}
@@ -189,113 +145,32 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
           </section>
 
           <section className="space-y-2">
-            <span className="text-sm font-medium">安装方式</span>
             <div className="flex gap-1 rounded-md bg-muted/40 p-1">
-              {MODES.map((m) => (
+              {TABS.map((t) => (
                 <button
-                  key={m.value}
+                  key={t.value}
                   type="button"
-                  onClick={() => setMode(m.value)}
+                  onClick={() => setTab(t.value)}
                   className={cn(
                     "flex-1 rounded-[inherit] px-3 py-1.5 text-sm font-medium transition-colors",
-                    mode === m.value
+                    tab === t.value
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {m.label}
+                  {t.label}
                 </button>
               ))}
             </div>
+            <SnippetBlock
+              value={current}
+              copied={copied}
+              onCopy={() => copy(current)}
+            />
+            <p className="text-muted-foreground text-xs">
+              复制后粘贴到终端执行（MCP 命令）或合并进对应配置文件（JSON）。
+            </p>
           </section>
-
-          {mode === "auto" ? (
-            <section className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">一键安装</span>
-                <Badge variant="secondary" className="font-normal">
-                  <Terminal className="size-3" />
-                  curl | bash
-                </Badge>
-              </div>
-              <pre
-                className={cn(
-                  "overflow-x-auto whitespace-pre-wrap break-all rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed",
-                  !ready && "opacity-50",
-                )}
-              >
-                {ready ? oneLiner : "正在获取实例信息…"}
-              </pre>
-              {sharesAgentsPath && (
-                <p className="text-muted-foreground text-xs">
-                  skill 装到{" "}
-                  <code className="font-mono">~/.agents/skills</code>，opencode
-                  与 Codex 共享此目录。
-                </p>
-              )}
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={!ready}
-                  onClick={() => copy("liner", oneLiner)}
-                >
-                  {copied === "liner" ? (
-                    <>
-                      <Check className="size-3.5" />
-                      已复制
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="size-3.5" />
-                      复制命令
-                    </>
-                  )}
-                </Button>
-              </div>
-            </section>
-          ) : (
-            <section className="space-y-2">
-              <span className="text-sm font-medium">手动安装</span>
-              <div className="flex gap-1">
-                {TABS.map((t) => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setTab(t.value)}
-                    className={cn(
-                      "rounded-md px-2 py-1 text-xs transition-colors",
-                      tab === t.value
-                        ? "bg-secondary text-secondary-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <SnippetBlock
-                value={
-                  tab === "skill"
-                    ? skillMd
-                    : tab === "mcp"
-                      ? mcpCmd
-                      : jsonSnippet
-                }
-                copied={copied === tab}
-                onCopy={() =>
-                  copy(
-                    tab,
-                    tab === "skill"
-                      ? skillMd
-                      : tab === "mcp"
-                        ? mcpCmd
-                        : jsonSnippet,
-                  )
-                }
-              />
-            </section>
-          )}
 
           <div className="flex justify-end">
             <Button
@@ -305,12 +180,12 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
               className="h-auto gap-1.5 px-0"
             >
               <a
-                href="https://opencode.ai/docs/skills"
+                href="https://modelcontextprotocol.io"
                 target="_blank"
                 rel="noreferrer"
               >
                 <ExternalLink className="size-3.5" />
-                Skill 文档
+                MCP 文档
               </a>
             </Button>
           </div>
