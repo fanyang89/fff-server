@@ -56,6 +56,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
 
   const ready = basePath !== null
   const url = origin ? `${origin}${withPrefix("/mcp")}` : ""
+  const secure = origin.startsWith("https://")
 
   useEffect(() => {
     if (!open) return
@@ -167,6 +168,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
               value={current}
               copied={copied}
               onCopy={() => copy(current)}
+              copyable={secure}
             />
             <p className="text-muted-foreground text-xs">
               复制后粘贴到终端执行（MCP 命令）或合并进对应配置文件（JSON）。
@@ -240,30 +242,34 @@ function SnippetBlock({
   value,
   copied,
   onCopy,
+  copyable = true,
 }: {
   value: string
   copied: boolean
   onCopy: () => void
+  copyable?: boolean
 }) {
   return (
     <div className="relative min-w-0">
-      <pre className="max-h-60 min-w-0 overflow-auto whitespace-pre rounded-md border bg-muted/40 p-3 pr-10 font-mono text-xs leading-relaxed">
+      <pre className="max-h-60 min-w-0 overflow-auto whitespace-pre rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
         {value || "（等待生成）"}
       </pre>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="absolute top-1.5 right-1.5 size-7"
-        disabled={!value}
-        onClick={onCopy}
-      >
-        {copied ? (
-          <Check className="size-3.5 text-emerald-600" />
-        ) : (
-          <Copy className="size-3.5" />
-        )}
-      </Button>
+      {copyable && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute top-1.5 right-1.5 size-7"
+          disabled={!value}
+          onClick={onCopy}
+        >
+          {copied ? (
+            <Check className="size-3.5 text-emerald-600" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
+        </Button>
+      )}
     </div>
   )
 }
