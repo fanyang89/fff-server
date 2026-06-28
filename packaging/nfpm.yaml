@@ -4,7 +4,7 @@ platform: linux
 # NOTE: the version is overridden at package time by `task rpm` / `task
 # pacman`, which pass --version extracted from Cargo.toml. The value here is
 # only a fallback for bare `nfpm package` invocations without that flag.
-version: 0.2.0
+version: 0.2.1
 release: "1"
 section: utils
 priority: optional
