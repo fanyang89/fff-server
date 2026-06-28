@@ -1,0 +1,15 @@
+# Explicit formatting policy. rustfmt's defaults are already what we want;
+# this file exists so that every environment (local dev, CI, editors with an
+# LSP formatter, agents) resolves the SAME config instead of silently
+# diverging when an empty/minimal config interpretation differs.
+#
+# Edition must match Cargo.toml's `edition = "2024"`.
+edition = "2024"
+
+# Reorder use-statements alphabetically. This is rustfmt's default but we
+# state it explicitly because it is the single most common source of
+# cross-tool drift (case-sensitive vs case-insensitive sort).
+reorder_imports = true
+
+# Stable line width — matches rustfmt default; pinned for consistency.
+max_width = 100

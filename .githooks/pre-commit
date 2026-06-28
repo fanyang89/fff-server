@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Pre-commit hook: refuse to commit Rust that isn't `cargo fmt`-clean.
+#
+# Activated via `git config core.hooksPath .githooks` (see AGENTS.md). Runs
+# only when at least one staged file under src/ or with a .rs extension is
+# present, so pure-docs / web / packaging commits skip it cheaply.
+#
+# Why this exists: editor/agent on-save formatters and rustfmt disagree on
+# `use` ordering for some files (notably src/openapi.rs), and without a gate
+# the wrongly-sorted version keeps getting committed, breaking CI's
+# `cargo fmt --all -- --check` step. This hook makes the same check local
+# and blocking, so the drift cannot reach the repo regardless of which tool
+# last touched the file.
+
+set -euo pipefail
+
+# Collect staged .rs paths (added/copied/modified/rename). Bail fast if none.
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR -- '*.rs' 'src/**')
+if [ "${#staged[@]}" -eq 0 ]; then
+    exit 0
+fi
+
+# `cargo fmt --check` operates on the whole crate; we run it and, on failure,
+# report which staged files differ so the author knows what to fix.
+if ! cargo fmt --all -- --check >/dev/null 2>&1; then
+    echo "pre-commit: cargo fmt --check failed." >&2
+    echo "Run \`cargo fmt --all\`, re-stage, and retry." >&2
+    echo "Offending staged files:" >&2
+    for f in "${staged[@]}"; do
+        if ! cargo fmt -p "$(cargo metadata --no-deps --format-version 1 \
+                | python3 -c 'import sys,json;print(json.load(sys.stdin)["packages"][0]["name"])')" -- --check "$f" >/dev/null 2>&1; then
+            printf '  - %s\n' "$f" >&2
+        fi
+    done
+    exit 1
+fi
