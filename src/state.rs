@@ -39,6 +39,10 @@ pub struct AppState {
     reindexing: Arc<AtomicBool>,
     last_run: Arc<Mutex<Option<ReindexRecord>>>,
     search_concurrency: Arc<Semaphore>,
+    /// Configured cap on concurrent plocate runs; stored alongside the
+    /// semaphore so queue-timeout error messages can report in-use vs max
+    /// without re-deriving it.
+    max_concurrent_searches: usize,
     search_timeout: Duration,
     /// How long a request may wait for a concurrency slot before 503.
     /// Distinct from `search_timeout` (which bounds the plocate run itself).
@@ -95,6 +99,7 @@ impl AppState {
             reindexing: Arc::new(AtomicBool::new(false)),
             last_run: Arc::new(Mutex::new(None)),
             search_concurrency: Arc::new(Semaphore::new(cfg.max_concurrent_searches.max(1))),
+            max_concurrent_searches: cfg.max_concurrent_searches.max(1),
             search_timeout: Duration::from_secs(cfg.search_timeout_secs),
             queue_timeout: Duration::from_secs(cfg.queue_timeout_secs),
             fuzzy_candidate_cap: cfg.fuzzy_candidate_cap.max(1),
@@ -113,6 +118,11 @@ impl AppState {
 
     pub fn is_reindexing(&self) -> bool {
         self.reindexing.load(Ordering::Acquire)
+    }
+
+    /// Configured cap on concurrent searches (>= 1). Exposed for diagnostics.
+    pub fn max_concurrent_searches(&self) -> usize {
+        self.max_concurrent_searches
     }
 
     /// Run a plocate query (substring by default; glob when the pattern
@@ -328,11 +338,19 @@ impl AppState {
             Ok(Err(_)) => Err(AppError::Internal(
                 "search concurrency semaphore closed".into(),
             )),
-            Err(_) => Err(AppError::QueueTimeout(format!(
-                "no concurrency slot within {}s (saturated at {})",
-                self.queue_timeout.as_secs(),
-                self.search_concurrency.available_permits()
-            ))),
+            Err(_) => {
+                // available_permits() is the FREE count, not in-use. Report
+                // both available and the configured max so the operator can
+                // tell saturation (0 free) from a transient slot churn.
+                let max = self.max_concurrent_searches();
+                let free = self.search_concurrency.available_permits().min(max);
+                Err(AppError::QueueTimeout(format!(
+                    "no concurrency slot within {}s ({} of {} slots in use)",
+                    self.queue_timeout.as_secs(),
+                    max - free,
+                    max,
+                )))
+            }
         }
     }
 
