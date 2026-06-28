@@ -23,7 +23,14 @@ pub async fn health(State(state): State<AppState>) -> Result<Json<HealthResponse
     let plocate_available = which(&state.plocate_bin.as_ref().to_string_lossy());
     let updatedb_available = which(&state.updatedb_bin.as_ref().to_string_lossy());
     let reindexing = state.is_reindexing();
-    let ok = db_present && plocate_available && updatedb_available && !reindexing;
+    // `ok` reflects ability to serve searches. A background reindex does NOT
+    // degrade search (the previous index remains queryable until the new one
+    // is swapped in atomically by updatedb), so it must not flip `ok` to
+    // false — otherwise a long reindex (up to --updatedb-timeout-secs) would
+    // make load balancers / k8s liveness probes tear the service down.
+    // `db_present` already covers the "no index yet" case (searches return
+    // empty, which is correct, but the service is still alive).
+    let ok = db_present && plocate_available && updatedb_available;
 
     Ok(Json(HealthResponse {
         ok,
