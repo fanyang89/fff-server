@@ -37,6 +37,16 @@ pub fn router(state: AppState) -> Router {
             }
         });
 
+    // The SwaggerUi `url()` argument is what the swagger-ui *frontend*
+    // (running in the browser) fetches, so it must be the absolute public
+    // path to the spec — including the mount prefix. Without the prefix the
+    // UI loads but fails to fetch `/openapi.json` (404) when nested.
+    let openapi_json_path = if prefix.is_empty() {
+        "/openapi.json".to_string()
+    } else {
+        format!("{prefix}/openapi.json")
+    };
+
     // Inner router carries every API/Swagger/MCP route but NO fallback. In
     // axum 0.7 a nested router's fallback does not fire for unmatched nested
     // paths (the outer router's fallback does), so we install the SPA
@@ -53,7 +63,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/file-server", get(health::file_server))
         .route("/api/feedback", get(health::feedback))
         .merge(SwaggerUi::new("/swagger-ui").url(
-            "/openapi.json",
+            openapi_json_path,
             ApiDoc::openapi_with_server(openapi_server.as_deref()),
         ));
 
