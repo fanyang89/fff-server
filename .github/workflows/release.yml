@@ -66,7 +66,7 @@ jobs:
       - name: Build vendored plocate + updatedb
         run: task plocate
 
-      - name: Build RPM + pacman packages
+      - name: Build RPM + pacman + deb packages
         run: task packages
 
       - name: Stage release artifacts
@@ -76,6 +76,9 @@ jobs:
              staging/plocate-server-x86_64-musl
           cp dist/plocate-server-*.rpm staging/ 2>/dev/null || true
           cp dist/plocate-server-*.pkg.tar.* staging/ 2>/dev/null || true
+          # .deb uses Debian's underscore filename convention
+          # (name_version-revision_arch.deb), not hyphens.
+          cp dist/plocate-server_*.deb staging/ 2>/dev/null || true
           ls -la staging/
 
       - name: Verify binary is statically linked
@@ -97,4 +100,5 @@ jobs:
             staging/plocate-server-x86_64-musl
             staging/plocate-server-*.rpm
             staging/plocate-server-*.pkg.tar.*
+            staging/plocate-server_*.deb
           fail_on_unmatched_files: true

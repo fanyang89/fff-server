@@ -161,7 +161,7 @@ tasks:
       - dist/musl/plocate
       - dist/musl/updatedb
     generates:
-      - "dist/plocate-server-*.deb"
+      - "dist/plocate-server_*.deb"
     cmds:
       - mkdir -p dist
       - nfpm package --config packaging/nfpm.yaml --packager deb --target dist/
