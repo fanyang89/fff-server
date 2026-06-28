@@ -1,7 +1,10 @@
 name: plocate-server
 arch: amd64
 platform: linux
-version: 0.1.0
+# NOTE: the version is overridden at package time by `task rpm` / `task
+# pacman`, which pass --version extracted from Cargo.toml. The value here is
+# only a fallback for bare `nfpm package` invocations without that flag.
+version: 0.2.0
 release: "1"
 section: utils
 priority: optional

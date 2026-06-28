@@ -3,6 +3,11 @@ version: "3"
 vars:
   TARGET: x86_64-unknown-linux-musl
   BIN: target/{{.TARGET}}/release/plocate-server
+  # Single source of truth for the package version is Cargo.toml; nfpm.yaml
+  # has no good way to read it directly, so we extract it here and pass
+  # --version on the CLI to override the hardcoded fallback in the yaml.
+  VERSION:
+    sh: grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/'
 
 tasks:
   default:
@@ -117,7 +122,7 @@ tasks:
       - "dist/plocate-server-*.rpm"
     cmds:
       - mkdir -p dist
-      - nfpm package --config packaging/nfpm.yaml --packager rpm --target dist/
+      - nfpm package --config packaging/nfpm.yaml --packager rpm --target dist/ --version {{.VERSION}}
 
   pacman:
     desc: Build the Arch pacman package via nFPM (depends on build + plocate)
@@ -134,7 +139,7 @@ tasks:
       - "dist/plocate-server-*.pkg.tar.*"
     cmds:
       - mkdir -p dist
-      - nfpm package --config packaging/nfpm.yaml --packager archlinux --target dist/
+      - nfpm package --config packaging/nfpm.yaml --packager archlinux --target dist/ --version {{.VERSION}}
 
   packages:
     desc: Build both RPM and pacman packages
