@@ -20,6 +20,23 @@ If `cargo fmt --check` reports a diff, run `cargo fmt --all` and commit
 the formatting separately (or fold into the change commit). Do not bypass
 the check.
 
+### Pre-commit hook (one-time setup)
+
+A git hook at `.githooks/pre-commit` runs `cargo fmt --check` and aborts
+the commit on failure. It is what stops the recurring `src/openapi.rs`
+use-ordering drift (editor/agent on-save formatters and rustfmt disagree
+on sort direction) from ever reaching CI.
+
+Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+If the hook ever blocks a commit you intended to make, the fix is always
+`cargo fmt --all && git add -u && git commit -c ORIG_HEAD` — never
+`--no-verify`.
+
 ## Workspace Layout
 
 This is a Cargo workspace (`[workspace] members = [".", "bench"]` in the
