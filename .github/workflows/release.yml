@@ -31,9 +31,12 @@ jobs:
         with:
           key: musl-${{ hashFiles('Cargo.lock') }}
 
-      - uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.16.1
+      # cargo-zigbuild requires zig 0.16+ features (musl + libc++ static
+      # linking for Rust 1.85+ std); zig hasn't cut a 0.16 stable release
+      # yet, so we pull a master nightly via mlugg/setup-zig (the maintained
+      # fork — goto-bus-stop/setup-zig is deprecated and 0.16.1 was never
+      # published, which is what was breaking CI before).
+      - uses: mlugg/setup-zig@v2
 
       - uses: pnpm/action-setup@v4
 
