@@ -53,12 +53,12 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
             type="button"
             onClick={clear}
             aria-label={t("search.ariaClear")}
-            className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex size-5 animate-in fade-in zoom-in-95 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground motion-reduce:animate-none motion-reduce:transition-none"
           >
             <X className="size-3.5" />
           </button>
         ) : (
-          <kbd className="pointer-events-none select-none rounded border bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs">
+          <kbd className="pointer-events-none animate-in fade-in zoom-in-95 select-none rounded border bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs duration-150 motion-reduce:animate-none">
             {t("search.shortcut")}
           </kbd>
         )}

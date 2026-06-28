@@ -27,7 +27,7 @@ export function ResultItem({ item, fileServerUrl }: ResultItemProps) {
         </div>
       </div>
       {href !== null && (
-        <ArrowUpRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        <ArrowUpRight className="size-4 shrink-0 translate-x-0.5 text-muted-foreground opacity-0 transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 motion-reduce:transition-none" />
       )}
     </>
   )

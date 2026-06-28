@@ -26,7 +26,7 @@ export function ResultList({ items, loading, fileServerUrl }: ResultListProps) {
   }
 
   return (
-    <div className="space-y-0.5">
+    <div className="animate-in fade-in space-y-0.5 duration-200 motion-reduce:animate-none">
       {items.map((item, i) => (
         <ResultItem
           key={`${item.absolute_path}-${i}`}

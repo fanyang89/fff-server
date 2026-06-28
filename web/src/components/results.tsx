@@ -17,7 +17,7 @@ export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
 
   if (status === "idle") {
     return (
-      <div className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
+      <div className="flex animate-in fade-in flex-col items-center gap-2 py-16 text-center text-muted-foreground duration-200 motion-reduce:animate-none">
         <SearchX className="size-8 opacity-40" />
         <p className="text-sm">{t("results.idle")}</p>
       </div>
@@ -26,7 +26,7 @@ export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
 
   if (status === "error") {
     return (
-      <div className="flex flex-col items-center gap-3 py-16 text-center">
+      <div className="flex animate-in fade-in flex-col items-center gap-3 py-16 text-center duration-200 motion-reduce:animate-none">
         <CircleX className="size-8 text-destructive" />
         <p className="text-sm text-muted-foreground">{error}</p>
         <Button variant="outline" size="sm" className="gap-2" onClick={onRetry}>
@@ -39,7 +39,7 @@ export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
 
   if (status === "empty") {
     return (
-      <div className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
+      <div className="flex animate-in fade-in flex-col items-center gap-2 py-16 text-center text-muted-foreground duration-200 motion-reduce:animate-none">
         <SearchX className="size-8 opacity-40" />
         <p className="text-sm">{t("results.empty")}</p>
       </div>
@@ -49,7 +49,7 @@ export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
   const loading = status === "loading"
 
   return (
-    <div className="py-2">
+    <div className="animate-in fade-in py-2 duration-200 motion-reduce:animate-none">
       {data && !loading && (
         <StatusBar
           total={data.total_matched}
