@@ -140,13 +140,21 @@ impl AppState {
         // tokio worker thread. On HDD-class stat latency this is the
         // difference between 8 slots being stuck for seconds vs N slots
         // queueing freely behind a non-blocking async frontier.
+        // The fan-out is bounded by `search_timeout` (same budget as the
+        // plocate child): on expiry we stop stat'ing and return what we
+        // have, marking the result `truncated`. Without this a single
+        // deep-pagination request (offset+limit up to 10100 stats) could
+        // pin a blocking worker for minutes on HDD.
         let base_path = self.base_path.clone();
         let stat_cache = self.stat_cache.clone();
-        let items = tokio::task::spawn_blocking(move || parse_paths(&raw, &base_path, &stat_cache))
-            .await
-            .map_err(|e| AppError::Internal(format!("parse_paths join error: {e}")))?;
+        let stat_deadline = Instant::now() + self.search_timeout;
+        let (items, stat_truncated) = tokio::task::spawn_blocking(move || {
+            parse_paths(&raw, &base_path, &stat_cache, Some(stat_deadline))
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("parse_paths join error: {e}")))?;
         let total_returned = items.len();
-        let truncated = total_returned == cap && cap > 0;
+        let truncated = (total_returned == cap && cap > 0) || stat_truncated;
         let paged: Vec<FileItemDto> = items.into_iter().skip(offset).take(limit).collect();
         Ok(SearchResponse {
             total_matched: total_returned,
@@ -187,12 +195,17 @@ impl AppState {
         // Stat fan-out for fuzzy is up to `cap` paths (default 1000) —
         // the heaviest path through the server. Moving it off the tokio
         // worker is the single most important fix for HDD deployments.
+        // Bounded by `search_timeout` so a cold-cache HDD scenario cannot
+        // pin a blocking worker past the configured SLA.
         let base_path = self.base_path.clone();
         let stat_cache = self.stat_cache.clone();
-        let items = tokio::task::spawn_blocking(move || parse_paths(&raw, &base_path, &stat_cache))
-            .await
-            .map_err(|e| AppError::Internal(format!("parse_paths join error: {e}")))?;
-        let truncated = items.len() >= cap;
+        let stat_deadline = Instant::now() + self.search_timeout;
+        let (items, stat_truncated) = tokio::task::spawn_blocking(move || {
+            parse_paths(&raw, &base_path, &stat_cache, Some(stat_deadline))
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("parse_paths join error: {e}")))?;
+        let truncated = items.len() >= cap || stat_truncated;
         // Rank with nucleo. match_paths() tunes scoring for path-like input
         // (prefers prefix/segment matches over mid-word matches).
         let mut matcher = Matcher::new(nucleo_matcher::Config::DEFAULT.match_paths());
@@ -328,8 +341,16 @@ impl AppState {
         if self.reindexing.swap(true, Ordering::AcqRel) {
             return ReindexOutcome::AlreadyRunning;
         }
+        // Hold the flag via a guard so it is cleared on task drop, including
+        // panic unwinding. Without this, any panic between swap(true) and the
+        // final store(false) would leave the flag set forever and block all
+        // future reindexes (every /api/reindex would return already-running).
+        let guard = ReindexGuard {
+            flag: Arc::clone(&self.reindexing),
+        };
         let state = self.clone();
         tokio::spawn(async move {
+            let _guard = guard;
             let started = Instant::now();
             let started_at = SystemTime::now();
             let outcome = run_updatedb(&state).await;
@@ -356,9 +377,21 @@ impl AppState {
             if state.invalidate_stat_cache_on_reindex {
                 state.stat_cache.invalidate_all();
             }
-            state.reindexing.store(false, Ordering::Release);
+            // flag is reset by `_guard` drop here.
         });
         ReindexOutcome::Started
+    }
+}
+
+/// RAII guard that clears the `reindexing` flag on drop — including panic
+/// unwinding — so a failed background reindex never wedges future runs.
+struct ReindexGuard {
+    flag: Arc<AtomicBool>,
+}
+
+impl Drop for ReindexGuard {
+    fn drop(&mut self) {
+        self.flag.store(false, Ordering::Release);
     }
 }
 
@@ -449,19 +482,39 @@ async fn run_with_timeout(
 }
 
 /// Parse NUL-separated plocate output into DTO items.
-fn parse_paths(raw: &[u8], base_path: &Path, stat_cache: &Cache<String, bool>) -> Vec<FileItemDto> {
+///
+/// `stat_deadline` bounds the per-path `stat` fan-out: when `Instant::now()`
+/// passes the deadline, parsing stops early and the second tuple element is
+/// `true` so the caller can mark the response `truncated`. This prevents a
+/// single request with thousands of cold stats (HDD) from pinning a blocking
+/// pool worker indefinitely.
+fn parse_paths(
+    raw: &[u8],
+    base_path: &Path,
+    stat_cache: &Cache<String, bool>,
+    stat_deadline: Option<Instant>,
+) -> (Vec<FileItemDto>, bool) {
     if raw.is_empty() {
-        return Vec::new();
+        return (Vec::new(), false);
     }
-    raw.split(|&b| b == 0)
-        .filter(|chunk| !chunk.is_empty())
-        .map(|chunk| {
-            // plocate output is UTF-8 bytes; filesystems may contain non-UTF-8,
-            // lossy-convert those rare cases.
-            let abs = String::from_utf8_lossy(chunk).into_owned();
-            build_item(&abs, base_path, stat_cache)
-        })
-        .collect()
+    let mut items = Vec::new();
+    let mut stat_truncated = false;
+    for chunk in raw.split(|&b| b == 0) {
+        if chunk.is_empty() {
+            continue;
+        }
+        if let Some(deadline) = stat_deadline
+            && Instant::now() >= deadline
+        {
+            stat_truncated = true;
+            break;
+        }
+        // plocate output is UTF-8 bytes; filesystems may contain non-UTF-8,
+        // lossy-convert those rare cases.
+        let abs = String::from_utf8_lossy(chunk).into_owned();
+        items.push(build_item(&abs, base_path, stat_cache));
+    }
+    (items, stat_truncated)
 }
 
 fn build_item(abs: &str, base_path: &Path, stat_cache: &Cache<String, bool>) -> FileItemDto {
@@ -560,11 +613,15 @@ pub fn proc_status() -> io::Result<(u64, u32)> {
 
 #[cfg(test)]
 mod tests {
-    use super::enrich_glob;
+    use super::{Cache, ReindexGuard, enrich_glob, parse_paths};
     use nucleo_matcher::Matcher;
     use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
     use nucleo_matcher::{Config, Utf32Str};
     use std::cmp::Reverse;
+    use std::path::Path;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::{Duration, Instant};
 
     #[test]
     fn enrich_glob_prepends_star_for_name_glob() {
@@ -630,5 +687,55 @@ mod tests {
         assert_eq!(scored[1].1, "oe1/zookeeper/build.rpm");
         // Partials do not match (score is None) and sink to the bottom.
         assert!(scored[2].0.is_none());
+    }
+
+    /// `parse_paths` with no deadline returns every chunk and never reports
+    /// stat-truncation.
+    #[test]
+    fn parse_paths_no_deadline_returns_all() {
+        let cache: Cache<String, bool> = Cache::new(10);
+        let raw = b"a\0b\0\0c\0";
+        let (items, truncated) = parse_paths(raw, Path::new("/"), &cache, None);
+        assert_eq!(items.len(), 3);
+        assert!(!truncated);
+    }
+
+    /// `parse_paths` with a deadline in the past must stop before stat'ing any
+    /// path and report `truncated=true`. This is the HDD-safety contract: a
+    /// single request cannot pin a blocking worker past the configured budget.
+    #[test]
+    fn parse_paths_expired_deadline_truncates() {
+        let cache: Cache<String, bool> = Cache::new(10);
+        let raw = b"/nonexistent/a\0/nonexistent/b\0/nonexistent/c\0";
+        let past = Instant::now() - Duration::from_secs(1);
+        let (items, truncated) = parse_paths(raw, Path::new("/"), &cache, Some(past));
+        assert!(
+            items.is_empty(),
+            "no path should be stat'ed past the deadline"
+        );
+        assert!(truncated);
+    }
+
+    /// `ReindexGuard` clears the flag on drop. This is the panic-safety
+    /// contract: even if the background task unwinds, the next `trigger_reindex`
+    /// must be able to start a new run instead of seeing `already-running`
+    /// forever.
+    #[test]
+    fn reindex_guard_clears_flag_on_drop() {
+        let flag = Arc::new(AtomicBool::new(false));
+        {
+            let g = ReindexGuard {
+                flag: Arc::clone(&flag),
+            };
+            // Simulate trigger_reindex's swap(true) followed by task body.
+            assert!(!flag.swap(true, Ordering::AcqRel));
+            drop(g);
+        }
+        assert!(
+            !flag.load(Ordering::Acquire),
+            "flag must be cleared on drop"
+        );
+        // And a fresh "trigger" must see the cleared flag.
+        assert!(!flag.swap(true, Ordering::AcqRel));
     }
 }

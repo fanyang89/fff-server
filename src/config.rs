@@ -43,9 +43,12 @@ pub struct Config {
     )]
     pub max_concurrent_searches: usize,
 
-    /// Per-query timeout (seconds). A plocate run exceeding this is killed and
-    /// reported as a 504. Note this bounds the plocate child + stat fan-out,
-    /// NOT the time spent waiting for a concurrency slot — see
+    /// Per-phase timeout (seconds). Applied to (1) the plocate child process
+    /// and (2) the per-path `stat` fan-out that follows. Worst-case request
+    /// latency is therefore up to 2× this value. A plocate run exceeding it
+    /// is killed and reported as a 504; the stat fan-out stops early and the
+    /// response is returned with `truncated=true`. Note this does NOT bound
+    /// the time spent waiting for a concurrency slot — see
     /// `--queue-timeout-secs` for that.
     #[arg(long, env = "PLOCATE_SERVER_SEARCH_TIMEOUT_SECS", default_value_t = 10)]
     pub search_timeout_secs: u64,
