@@ -1,3 +1,5 @@
+import { withPrefix } from "@/lib/config"
+
 export type FileItem = {
   type: string
   name: string
@@ -75,7 +77,7 @@ export async function fetchSearch(
 
   let res: Response
   try {
-    res = await fetch(`/api/fuzzy?${params.toString()}`, {
+    res = await fetch(`${withPrefix("/api/fuzzy")}?${params.toString()}`, {
       signal,
       headers: { accept: "application/json" },
     })
@@ -106,7 +108,7 @@ export async function fetchSearch(
 export async function fetchHealth(
   signal: AbortSignal,
 ): Promise<HealthResponse> {
-  const res = await fetch("/api/health", {
+  const res = await fetch(withPrefix("/api/health"), {
     signal,
     headers: { accept: "application/json" },
   })
@@ -117,7 +119,7 @@ export async function fetchHealth(
 export async function fetchStats(
   signal: AbortSignal,
 ): Promise<StatsResponse> {
-  const res = await fetch("/api/stats", {
+  const res = await fetch(withPrefix("/api/stats"), {
     signal,
     headers: { accept: "application/json" },
   })
@@ -128,7 +130,7 @@ export async function fetchStats(
 export async function triggerReindex(
   signal: AbortSignal,
 ): Promise<ReindexResponse> {
-  const res = await fetch("/api/reindex", {
+  const res = await fetch(withPrefix("/api/reindex"), {
     method: "POST",
     signal,
     headers: { accept: "application/json" },
@@ -140,7 +142,7 @@ export async function triggerReindex(
 export async function fetchFileServer(
   signal: AbortSignal,
 ): Promise<FileServerConfig> {
-  const res = await fetch("/api/file-server", {
+  const res = await fetch(withPrefix("/api/file-server"), {
     signal,
     headers: { accept: "application/json" },
   })
@@ -151,7 +153,7 @@ export async function fetchFileServer(
 export async function fetchFeedback(
   signal: AbortSignal,
 ): Promise<FeedbackConfig> {
-  const res = await fetch("/api/feedback", {
+  const res = await fetch(withPrefix("/api/feedback"), {
     signal,
     headers: { accept: "application/json" },
   })

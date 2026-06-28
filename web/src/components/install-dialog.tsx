@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { withPrefix } from "@/lib/config"
 import { cn } from "@/lib/utils"
 import {
   type Agent,
@@ -54,7 +55,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
   const [origin, setOrigin] = useState("")
 
   const ready = basePath !== null
-  const url = origin ? `${origin}/mcp` : ""
+  const url = origin ? `${origin}${withPrefix("/mcp")}` : ""
 
   useEffect(() => {
     if (!open) return

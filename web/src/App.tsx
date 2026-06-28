@@ -6,6 +6,7 @@ import { InstallDialog } from "@/components/install-dialog"
 import { Results } from "@/components/results"
 import { SearchBar } from "@/components/search-bar"
 import { Button } from "@/components/ui/button"
+import { withPrefix } from "@/lib/config"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useFileServer } from "@/hooks/use-file-server"
 import { useHealth } from "@/hooks/use-health"
@@ -32,7 +33,7 @@ export default function App() {
             </Button>
           )}
           <Button asChild variant="outline" size="sm" className="gap-2">
-            <a href="/swagger-ui" target="_blank" rel="noreferrer">
+            <a href={withPrefix("/swagger-ui")} target="_blank" rel="noreferrer">
               <Code className="size-4" />
               API 文档
             </a>
