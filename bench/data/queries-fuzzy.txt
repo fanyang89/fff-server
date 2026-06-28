@@ -1,0 +1,61 @@
+# Fuzzy multi-keyword queries — models the production main use case where users
+# type 2-4 tokens that must all appear in the path, ranked by relevance.
+# This is the heaviest path through plocate-server: each query stat-checks
+# up to FUZZY_CANDIDATE_CAP=1000 candidates before ranking.
+#
+# Use with: --mode fuzzy --queries bench/data/queries-fuzzy.txt
+#
+# Tokens are drawn from the synthetic dataset's vocabulary: package names
+# (kernel-core, glibc, openssl, ...), distros (fedora, centos-stream, debian,
+# ubuntu), versions (fc40, el9, bookworm, ...), and arches (x86_64, aarch64).
+
+# package + arch
+kernel x86_64
+glibc aarch64
+openssl x86_64
+systemd aarch64
+python3 x86_64
+rust x86_64
+gcc aarch64
+nginx x86_64
+postgres aarch64
+redis x86_64
+
+# package + distro
+kernel fedora
+glibc centos
+openssl debian
+systemd ubuntu
+curl fedora
+bash centos
+zlib debian
+libxml2 ubuntu
+sqlite fedora
+valkey ubuntu
+
+# package + version fragment
+kernel fc40
+glibc el9
+openssl bookworm
+systemd noble
+rust jammy
+gcc fc41
+
+# three-token (tighter recall, still 1000-candidate stat waterfall)
+kernel core x86_64
+glibc devel fc40
+openssl libs el9
+python3 libs debian
+rust std aarch64
+gcc c++ stream
+nginx httpd fedora
+postgres libs stream
+valkey redis jammy
+curl libcurl devel
+
+# four-token (very tight; tests cap behaviour when recall < cap)
+kernel core fc40 x86_64
+glibc devel el9 aarch64
+openssl libs bookworm x86_64
+systemd libs noble aarch64
+rust std jammy x86_64

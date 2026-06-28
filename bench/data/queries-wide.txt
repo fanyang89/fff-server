@@ -1,0 +1,16 @@
+# Wide-glob queries — patterns that match large fractions of the index.
+# These stress plocate's internal traversal (which scans every match even
+# when -l caps the output) and produce large result sets that all get stat'd.
+#
+# Use with: --mode glob --queries bench/data/queries-wide.txt
+
+*.rpm
+*.deb
+*.iso
+*.tar.xz
+*-debuginfo-*
+kernel-*.rpm
+glibc-*.rpm
+openssl-*.rpm
+*-devel-*.rpm
+*-libs-*

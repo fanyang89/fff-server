@@ -1,0 +1,62 @@
+# Fixed substring queries for stat_cache hit/miss comparison.
+# Run two back-to-back rounds with the SAME query stream — round 1 misses
+# (cold), round 2 hits (warm). The p99 delta isolates the stat cost from
+# the plocate + fork overhead.
+#
+# Use with: --mode substring --queries bench/data/queries-repeat.txt
+# Then re-run the same command for round 2.
+
+kernel-core
+kernel-modules
+kernel-devel
+kernel-headers
+glibc
+glibc-devel
+glibc-common
+openssl
+openssl-libs
+openssl-devel
+systemd
+systemd-libs
+systemd-devel
+curl
+libcurl
+libcurl-devel
+bash
+coreutils
+findutils
+python3
+python3-libs
+python3-devel
+rust
+rust-std
+cargo
+gcc
+gcc-c++
+libgcc
+libstdc++
+zlib
+zlib-devel
+libxml2
+libxml2-devel
+sqlite
+sqlite-devel
+postgresql
+postgresql-libs
+redis
+valkey
+nginx
+httpd
+debuginfo
+sources
+.rpm
+.iso
+.deb
+.tar.xz
+fc40
+el9
+bookworm
+noble
+jammy
+aarch64
+x86_64
