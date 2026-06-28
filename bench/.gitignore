@@ -1,2 +1,5 @@
 # benchmark run outputs (JSON reports, stats snapshots)
 results/
+
+# compiled LD_PRELOAD shim (built by bench/bin/build-slowio.sh)
+bin/slowio.so

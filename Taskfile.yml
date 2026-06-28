@@ -177,6 +177,44 @@ tasks:
     cmds:
       - cargo run --release -- {{.BENCH_SERVER_ARGS}}
 
+  bench-serve-hdd:
+    desc: |
+      Run server with LD_PRELOAD stat-latency injection (simulates HDD).
+      Env:
+        SLOWIO_STAT_US  microseconds per stat (default 10000 ~ HDD seek)
+        SLOWIO_DEBUG=1  print every intercepted stat
+        BENCH_BIND      bind address (default 127.0.0.1:8787)
+      Args after -- are appended to the server args (e.g. --max-concurrent-searches 4).
+      Example: SLOWIO_STAT_US=5000 task bench-serve-hdd -- --max-concurrent-searches 4
+    preconditions:
+      - sh: test -f bench/data/files.db
+        msg: "index missing; run: task bench-data -- 10k|100k|1m first"
+      - sh: command -v gcc >/dev/null
+        msg: "gcc not installed (needed to build slowio.so)"
+    deps:
+      - bench-build-slowio
+    vars:
+      STAT_US: '{{.SLOWIO_STAT_US | default "10000"}}'
+      BIND: '{{.BENCH_BIND | default "127.0.0.1:8787"}}'
+    cmds:
+      - >
+        SLOWIO_STAT_US={{.STAT_US}}
+        LD_PRELOAD={{.TASKFILE_DIR}}/bench/bin/slowio.so
+        {{.TASKFILE_DIR}}/target/release/plocate-server
+        --base-path bench/data/tree
+        --bind {{.BIND}}
+        --db-path bench/data/files.db
+        {{.CLI_ARGS}}
+
+  bench-build-slowio:
+    desc: Compile the LD_PRELOAD stat-latency shim (slowio.so)
+    sources:
+      - bench/bin/slowio.c
+    generates:
+      - bench/bin/slowio.so
+    cmds:
+      - bash bench/bin/build-slowio.sh
+
   bench-baseline:
     desc: "Constant-RPS latency test (pass --rate N --duration D)"
     cmds:
