@@ -92,7 +92,12 @@ All flags have matching environment variables.
 | `--max-results` | `PLOCATE_SERVER_MAX_RESULTS` | `100` |
 | `--max-concurrent-searches` | `PLOCATE_SERVER_MAX_CONCURRENT_SEARCHES` | `8` |
 | `--search-timeout-secs` | `PLOCATE_SERVER_SEARCH_TIMEOUT_SECS` | `10` |
+| `--queue-timeout-secs` | `PLOCATE_SERVER_QUEUE_TIMEOUT_SECS` | `5` |
+| `--fuzzy-candidate-cap` | `PLOCATE_SERVER_FUZZY_CANDIDATE_CAP` | `1000` |
+| `--invalidate-stat-cache-on-reindex` | `PLOCATE_SERVER_INVALIDATE_STAT_CACHE_ON_REINDEX` | `true` |
 | `--updatedb-timeout-secs` | `PLOCATE_SERVER_UPDATEDB_TIMEOUT_SECS` | `3600` |
+| `--file-server-url` | `PLOCATE_SERVER_FILE_SERVER_URL` | *(unset)* |
+| `--feedback-email` | `PLOCATE_SERVER_FEEDBACK_EMAIL` | *(unset)* |
 | `--instance-name` | `PLOCATE_SERVER_INSTANCE_NAME` | `plocate` |
 
 ## API
@@ -101,10 +106,13 @@ All flags have matching environment variables.
 | --- | --- | --- |
 | GET | `/api/search` | Filename/path search (substring or glob) |
 | GET | `/api/glob` | Explicit glob search |
+| GET | `/api/fuzzy` | Multi-keyword fuzzy search with relevance ranking |
 | GET | `/api/health` | Index + binary health |
 | GET | `/api/stats` | Process RSS/threads, db size/mtime, last reindex |
 | POST | `/api/reindex` | Trigger a background `updatedb` run |
 | GET | `/api/base-path` | Currently indexed root |
+| GET | `/api/file-server` | External file-server base URL (if configured) |
+| GET | `/api/feedback` | Contact email (if configured) |
 
 ### Examples
 
