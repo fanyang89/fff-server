@@ -70,7 +70,7 @@ pub async fn install_sh(Query(mut p): Query<InstallParams>, headers: HeaderMap) 
 fn validate_all(p: &InstallParams, agent: &str, target: &str) -> Result<(), String> {
     crate::limits::validate_skill_name(&p.name).map_err(|e| e.to_string())?;
     validate_url(&p.url)?;
-    validate_choice("agent", agent, &["opencode", "claude", "generic"])?;
+    validate_choice("agent", agent, &["opencode", "claude", "codex", "generic"])?;
     validate_choice("target", target, &["global", "project"])?;
     if let Some(s) = p.scope.as_deref() {
         check_len("scope", s, SCOPE_MAX)?;
@@ -219,9 +219,11 @@ mod tests {
 
     #[test]
     fn agent_target_choices() {
-        assert!(validate_choice("agent", "opencode", &["opencode", "claude", "generic"]).is_ok());
-        assert!(validate_choice("agent", "claude", &["opencode", "claude", "generic"]).is_ok());
-        assert!(validate_choice("agent", "cursor", &["opencode", "claude", "generic"]).is_err());
+        assert!(validate_choice("agent", "opencode", &["opencode", "claude", "codex", "generic"]).is_ok());
+        assert!(validate_choice("agent", "claude", &["opencode", "claude", "codex", "generic"]).is_ok());
+        assert!(validate_choice("agent", "codex", &["opencode", "claude", "codex", "generic"]).is_ok());
+        assert!(validate_choice("agent", "generic", &["opencode", "claude", "codex", "generic"]).is_ok());
+        assert!(validate_choice("agent", "cursor", &["opencode", "claude", "codex", "generic"]).is_err());
         assert!(validate_choice("target", "global", &["global", "project"]).is_ok());
         assert!(validate_choice("target", "project", &["global", "project"]).is_ok());
         assert!(validate_choice("target", "user", &["global", "project"]).is_err());

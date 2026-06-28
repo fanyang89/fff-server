@@ -16,15 +16,26 @@ TARGET={{TARGET}}
 NOTES_ENC={{NOTES_ENC}}
 ORIGIN={{ORIGIN}}
 
-# 1. Resolve the target skill directory for the chosen agent × scope.
-case "$AGENT:$TARGET" in
-  opencode:global)  SKILL_DIR="$HOME/.config/opencode/skills/$NAME" ;;
-  opencode:project) SKILL_DIR=".opencode/skills/$NAME" ;;
-  claude:global)    SKILL_DIR="$HOME/.claude/skills/$NAME" ;;
-  claude:project)   SKILL_DIR=".claude/skills/$NAME" ;;
-  generic:global)   SKILL_DIR="$HOME/.config/opencode/skills/$NAME" ;;
-  generic:project)  SKILL_DIR=".opencode/skills/$NAME" ;;
-  *) echo "install: bad agent/target: $AGENT/$TARGET" >&2; exit 1 ;;
+# 1. Resolve the target skill directory.
+#    Claude uses its own paths; opencode/codex/generic all share the
+#    cross-agent ~/.agents/skills (.agents/skills for project) tree, so one
+#    install is discovered by both opencode and Codex.
+case "$TARGET" in
+  global)
+    if [ "$AGENT" = claude ]; then
+      SKILL_DIR="$HOME/.claude/skills/$NAME"
+    else
+      SKILL_DIR="$HOME/.agents/skills/$NAME"
+    fi
+    ;;
+  project)
+    if [ "$AGENT" = claude ]; then
+      SKILL_DIR=".claude/skills/$NAME"
+    else
+      SKILL_DIR=".agents/skills/$NAME"
+    fi
+    ;;
+  *) echo "install: bad target: $TARGET" >&2; exit 1 ;;
 esac
 
 # 2. Fetch the rendered SKILL.md (same params, server renders the body).
@@ -35,6 +46,9 @@ if ! curl -fsSL "$ORIGIN/install/skill.md?$QUERY" -o "$SKILL_DIR/SKILL.md"; then
   exit 1
 fi
 echo "installed skill  -> $SKILL_DIR/SKILL.md"
+case "$AGENT" in
+  opencode|codex) echo "(shared by opencode and Codex via ~/.agents/skills)" ;;
+esac
 
 # 3. Register the MCP server (best-effort; never fail the whole install).
 case "$AGENT" in
@@ -54,6 +68,15 @@ case "$AGENT" in
     else
       echo "Claude Code CLI not on PATH; register manually:"
       echo "  claude mcp add --transport http $NAME $URL"
+    fi
+    ;;
+  codex)
+    if command -v codex >/dev/null 2>&1; then
+      codex mcp add "$NAME" --url "$URL" \
+        || echo "(codex mcp add skipped or already registered)"
+    else
+      echo "Codex CLI not on PATH; install it from https://github.com/openai/codex"
+      echo "then run: codex mcp add $NAME --url $URL"
     fi
     ;;
   generic)
