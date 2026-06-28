@@ -1,334 +1,138 @@
+<div align="center">
+
 # plocate-server
 
-A RESTful **filename / path search** API server for very large file trees (millions of
-files), backed by a [plocate](https://plocate.sesse.net/) trigram index that lives on
-disk.
+A RESTful **filename / path search** API server for very large file trees
+(millions of files), backed by an on-disk [plocate](https://plocate.sesse.net/)
+trigram index.
 
-The index is built and refreshed by `updatedb` and queried by `plocate`. Because the
-index is on disk, **a process restart never rescans** — the server starts instantly and
-is ready to serve. Designed for a shared host where it must not disturb a foreground
-service (e.g. `dufs`).
+Sub-millisecond search · ~20 MiB RSS · cgroup-bounded · single-file static deploy
 
-## Features
+[![CI](https://github.com/fanyang89/plocate-server/actions/workflows/ci.yml/badge.svg)](https://github.com/fanyang89/plocate-server/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Rust](https://img.shields.io/badge/rust-2024-orange.svg)](https://www.rust-lang.org/)
+[![Release](https://img.shields.io/github/v/release/fanyang89/plocate-server?include_prereleases)](https://github.com/fanyang89/plocate-server/releases)
 
-- Filename / path search via plocate’s trigram inverted index (sub-millisecond even at
-  10M+ files)
-- On-disk index — restart is instant, no rescan
-- Periodic reindex via systemd timer (calls `POST /api/reindex`) + on-demand
-  `POST /api/reindex`
-- Glob matching
-- Auto-generated OpenAPI 3.0 spec + Swagger UI
-- **mimalloc** global allocator
-- Fully-static musl binary via **cargo-zigbuild** (single-file deploy)
-- cgroup-bounded so it never starves the foreground service
+**[English](./README.md)** · [中文文档](./docs/zh/README.md)
 
-## Runtime requirements
+</div>
 
-The host needs the **`plocate`** package, which provides both the `plocate` query binary
-and `updatedb`:
+---
 
-```bash
-sudo dnf install plocate     # Fedora
-sudo apt install plocate     # Debian/Ubuntu
-```
+## Why plocate-server
 
-## Build (static musl)
-
-A single fully-statically-linked binary built with
-[cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild).
-No C dependencies, so the build is fast and the binary has no runtime libc requirement.
-
-### Prerequisites (build host)
-
-```bash
-rustup target add x86_64-unknown-linux-musl
-cargo install cargo-zigbuild
-# install zig 0.16+ (https://ziglang.org/download/)
-```
-
-### Build
-
-```bash
-task build           # cargo zigbuild --release --target x86_64-unknown-linux-musl
-task inspect         # confirm: "statically linked" / "not a dynamic executable"
-```
-
-Output: `target/x86_64-unknown-linux-musl/release/plocate-server`.
-
-### Single-file deploy
-
-```bash
-scp target/x86_64-unknown-linux-musl/release/plocate-server host:/usr/local/bin/
-# the binary is self-contained; plocate + updatedb must exist on the target host
-```
-
-For local gnu development without zig, use `task run` (or `cargo run`).
+- **Blazing fast** — sub-millisecond even at 10M+ paths (measured p99 `3.84 ms`
+  over 888k paths on SSD).
+- **Tiny footprint** — the index lives on disk, never in RAM; steady-state RSS
+  is ~20 MiB.
+- **Good neighbour** — cgroup v2 bounded (`Nice=19`, `IOSchedulingClass=idle`,
+  `CPUQuota=200%`), designed to run alongside a busy foreground service
+  (e.g. `dufs`) without starving it.
+- **One-file deploy** — fully-static musl binary via cargo-zigbuild; no libc,
+  no runtime deps.
+- **Three ways in** — REST API, auto-generated OpenAPI / Swagger UI, and MCP
+  for AI agents.
+- **Ships a UI** — embedded React SPA with debounced search, fuzzy ranking,
+  and an MCP install dialog.
 
 ## Quick start
 
 ```bash
+# Needs the plocate package on the host
+sudo dnf install plocate     # Fedora / RHEL
+sudo apt install plocate     # Debian / Ubuntu
+
+# Run against your tree
 cargo run --release -- --base-path /srv/files
 ```
 
-The first start builds the index in the background (searches return empty until ready).
-Subsequent starts reuse the on-disk index and serve immediately.
-Open:
+The first start builds the index in the background; subsequent starts reuse
+the on-disk index and serve immediately. Open:
 
 ```
+http://127.0.0.1:8787        # SPA
 http://127.0.0.1:8787/swagger-ui
 ```
 
+```bash
+# Try it
+curl 'http://127.0.0.1:8787/api/search?q=invoice&limit=5'
+curl 'http://127.0.0.1:8787/api/glob?pattern=*2024*.log'
+curl 'http://127.0.0.1:8787/api/fuzzy?q=zookeeper%20rpm%20oe1'
+```
+
+## How it works
+
+```mermaid
+flowchart LR
+    Client([HTTP client / Agent / SPA]) -->|REST · MCP| Axum[axum handler]
+    Axum --> Sem{{"Semaphore<br/>max_concurrent_searches"}}
+    Sem --> Plocate["plocate -d files.db -i -N -0 -- pattern"]
+    Plocate -.read mmap.-> DB[("files.db<br/>on-disk trigram index")]
+    Update["updatedb -U root -o db<br/>(timer / POST /api/reindex)"] -.writes.-> DB
+    Plocate -->|NUL paths| Parse[parse_paths<br/>spawn_blocking]
+    Parse -->|stat fan-out| Cache[("moka stat_cache<br/>100k entries")]
+    Cache --> JSON[JSON / text]
+    subgraph cg ["cgroup v2 bounds"]
+      Axum
+      Plocate
+    end
+    style cg fill:#f0f8ff,stroke:#3b82f6,stroke-dasharray: 5 5
+```
+
+The server holds **no index in RAM** — it spawns short-lived `plocate` child
+processes that mmap the on-disk index. `updatedb` refreshes that file
+independently (systemd timer or `POST /api/reindex`). That separation is what
+makes it safe to run alongside a busy file server.
+
+## Documentation
+
+| Topic | English | 中文 |
+| --- | --- | --- |
+| Install & first run | [getting-started](./docs/en/getting-started.md) | [快速上手](./docs/zh/getting-started.md) |
+| All flags & env vars | [configuration](./docs/en/configuration.md) | [配置参考](./docs/zh/configuration.md) |
+| REST endpoints | [api](./docs/en/api.md) | [API 参考](./docs/zh/api.md) |
+| MCP tools for agents | [mcp](./docs/en/mcp.md) | [MCP 集成](./docs/zh/mcp.md) |
+| systemd · cgroup · packages | [deployment](./docs/en/deployment.md) | [部署运维](./docs/zh/deployment.md) |
+| Architecture & internals | [architecture](./docs/en/architecture.md) | [架构原理](./docs/zh/architecture.md) |
+| HDD tuning & latency | [hdd-tuning](./docs/en/hdd-tuning.md) | [HDD 调优](./docs/zh/hdd-tuning.md) |
+| Bench harness & results | [benchmark](./docs/en/benchmark.md) | [性能基准](./docs/zh/benchmark.md) |
+
 ## Configuration
 
-All flags have matching environment variables.
+All flags have matching `PLOCATE_SERVER_*` env vars. Most-used:
 
 | Flag | Env | Default |
 | --- | --- | --- |
 | `--base-path` | `PLOCATE_SERVER_BASE_PATH` | *(required)* |
 | `--bind` | `PLOCATE_SERVER_BIND` | `127.0.0.1:8787` |
 | `--db-path` | `PLOCATE_SERVER_DB_PATH` | `$XDG_DATA_HOME/plocate-server/files.db` |
-| `--plocate-bin` | `PLOCATE_SERVER_PLOCATE_BIN` | `plocate` |
-| `--updatedb-bin` | `PLOCATE_SERVER_UPDATEDB_BIN` | `updatedb` |
 | `--max-results` | `PLOCATE_SERVER_MAX_RESULTS` | `100` |
 | `--max-concurrent-searches` | `PLOCATE_SERVER_MAX_CONCURRENT_SEARCHES` | `8` |
-| `--search-timeout-secs` | `PLOCATE_SERVER_SEARCH_TIMEOUT_SECS` | `10` |
-| `--queue-timeout-secs` | `PLOCATE_SERVER_QUEUE_TIMEOUT_SECS` | `5` |
-| `--fuzzy-candidate-cap` | `PLOCATE_SERVER_FUZZY_CANDIDATE_CAP` | `1000` |
-| `--invalidate-stat-cache-on-reindex` | `PLOCATE_SERVER_INVALIDATE_STAT_CACHE_ON_REINDEX` | `true` |
-| `--updatedb-timeout-secs` | `PLOCATE_SERVER_UPDATEDB_TIMEOUT_SECS` | `3600` |
-| `--file-server-url` | `PLOCATE_SERVER_FILE_SERVER_URL` | *(unset)* |
-| `--feedback-email` | `PLOCATE_SERVER_FEEDBACK_EMAIL` | *(unset)* |
-| `--instance-name` | `PLOCATE_SERVER_INSTANCE_NAME` | `plocate` |
 | `--public-base-url` | `PLOCATE_SERVER_PUBLIC_BASE_URL` | *(unset)* |
+| `--file-server-url` | `PLOCATE_SERVER_FILE_SERVER_URL` | *(unset)* |
 
-## API
+Full table (17 flags) → [configuration](./docs/en/configuration.md).
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/search` | Filename/path search (substring or glob) |
-| GET | `/api/glob` | Explicit glob search |
-| GET | `/api/fuzzy` | Multi-keyword fuzzy search with relevance ranking |
-| GET | `/api/health` | Index + binary health |
-| GET | `/api/stats` | Process RSS/threads, db size/mtime, last reindex |
-| POST | `/api/reindex` | Trigger a background `updatedb` run |
-| GET | `/api/base-path` | Currently indexed root |
-| GET | `/api/file-server` | External file-server base URL (if configured) |
-| GET | `/api/feedback` | Contact email (if configured) |
+## Development
 
-### Examples
+Requires Rust, [Task](https://taskfile.dev), and pnpm.
 
 ```bash
-# Substring search (case-insensitive by default)
-curl 'http://127.0.0.1:8787/api/search?q=invoice&limit=20'
-
-# Match basename only
-curl 'http://127.0.0.1:8787/api/search?q=readme&scope=basename'
-
-# Case-sensitive
-curl 'http://127.0.0.1:8787/api/search?q=README&case=true'
-
-# Glob
-curl 'http://127.0.0.1:8787/api/glob?pattern=*2024*.log'
-
-# Force a refresh
-curl -X POST http://127.0.0.1:8787/api/reindex
-
-# Health
-curl http://127.0.0.1:8787/api/health
+task check          # cargo check
+task web-dev        # Vite dev server (proxies API to :8787)
+task run            # cargo run (gnu dev build)
+task build          # release musl binary (needs zig)
+task packages       # RPM + pacman via nfpm
 ```
 
-### Notes on results
-
-- plocate’s index stores **paths only** — no size/mtime/git metadata.
-  Items contain `name`, `relative_path`, `absolute_path`, and `type` (`"file"` or
-  `"directory"`). Since plocate does not tag directories in its output, `type` is
-  determined by `stat` at query time and memoized in an in-process
-  [moka](https://crates.io/crates/moka) cache that is invalidated on every reindex, so
-  it stays consistent with the index.
-  This matches the “filename and path only” use case.
-- `total_matched` is the number of entries plocate returned up to the requested cap
-  (`offset + limit`), not an exact total over the whole index.
-  `truncated` indicates more matches likely exist.
-
-## Query syntax
-
-`/api/search` passes the pattern to plocate after a `--` separator (no shell, so no
-injection). plocate treats a pattern as:
-
-- a **substring** if it has no glob metacharacters,
-- a **glob** if it contains `*`, `?`, or `[` (must be wrapped in `*...*` to also match
-  substrings).
-
-Multiple patterns are AND-ed.
-See `plocate(1)` for the full semantics.
-
-## How it works
-
-```
-HTTP request
-   │  axum handler spawns:
-   ▼
-plocate -d <db> -i -N -0 -l <cap> -- <pattern>     (short-lived child process)
-   │  reads the on-disk trigram index (mmap, io_uring), streams NUL-separated paths
-   ▼
-parsed → JSON
-```
-
-The index is produced independently by `updatedb -U <root> -o <db>`, run either by the
-in-server interval or by `POST /api/reindex`. Because the index is a file, the server
-process holds **no index in RAM** — its footprint is just the HTTP runtime (~7 MB RSS).
-This is what makes it safe to run alongside a busy file server.
-
-## MCP (Model Context Protocol)
-
-The server also speaks MCP over Streamable HTTP at `POST /mcp`, so AI agents can search
-the tree directly. It exposes two tools:
-
-| Tool | Arguments | Returns |
-| --- | --- | --- |
-| `search_files` | `query`, `limit?`, `offset?`, `case_insensitive?`, `scope?` | matching relative paths, one per line |
-| `glob` | `pattern`, `limit?`, `offset?`, `case_insensitive?` | matching relative paths, one per line |
-
-`/mcp` is **stateless** — each JSON-RPC request is self-contained, no session handshake
-required. It shares the same engine, concurrency cap, timeouts, and input limits as the
-REST API.
-
-### Agent configuration (opencode)
-
-```jsonc
-// opencode.json — "mcp" section
-{
-  "mcp": {
-    "plocate-server": {
-      "type": "http",
-      "url": "http://127.0.0.1:8787/mcp"
-    }
-  }
-}
-```
-
-### Raw usage
-
-```bash
-curl -s http://127.0.0.1:8787/mcp \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
-       "params":{"name":"search_files","arguments":{"query":"invoice"}}}'
-```
-
-The `/mcp` endpoint sits behind the same reverse proxy / auth boundary as the REST API —
-point the agent at `https://your-host/mcp`.
-
-## Mounting under a path prefix
-
-By default the server mounts at `/`. To serve it under a sub-path (e.g.
-`https://files.example.com/search/`), pass `--public-base-url` and configure
-the reverse proxy to forward **without** stripping the prefix:
-
-```bash
-plocate-server --base-path /srv/files --public-base-url /search
-# or with a canonical public URL (preferred — populates OpenAPI `servers`):
-plocate-server --base-path /srv/files --public-base-url https://files.example.com/search
-```
-
-Then every surface moves under the prefix: `/search/api/...`,
-`/search/swagger-ui`, `/search/openapi.json`, `/search/mcp`, and the SPA at
-`/search/`. The bare prefix (`/search`) redirects to `/search/`; unprefixed
-paths (`/api/health`, `/`) return 404 so misrouted requests are obvious.
-
-nginx example (note: no trailing slash on `proxy_pass`, so the prefix is
-preserved):
-
-```nginx
-location /search/ {
-    proxy_pass http://127.0.0.1:8787;   # no trailing slash -> prefix kept
-}
-```
-
-Caddy example (`reverse_proxy` forwards the full URI by default, so the
-prefix is preserved without any extra option):
-
-```caddy
-files.example.com {
-    reverse_proxy /search/* 127.0.0.1:8787
-}
-```
-
-The flag accepts either a path (`/search`) or a full URL
-(`https://host/search`). A full URL is preferred because it also seeds the
-OpenAPI `servers` field with the canonical public origin, so Swagger UI's
-"Try it out" works out of the box. With just a path, the SPA derives absolute
-URLs from the browser origin at runtime.
-
-## Deployment & resource control
-
-### Install
-
-```bash
-# 1. Build & install the binary
-task build
-sudo install -m 0755 target/x86_64-unknown-linux-musl/release/plocate-server /usr/local/bin/plocate-server
-
-# 2. Ensure plocate is installed
-sudo dnf install plocate
-
-# 3. Dedicated unprivileged user
-sudo useradd -r -s /usr/sbin/nologin -d /var/lib/plocate-server -M plocate-server
-sudo install -d -o plocate-server -g plocate-server /var/lib/plocate-server
-
-# 4. Install the unit (shipped at deploy/plocate-server.service)
-sudo install -m 0644 deploy/plocate-server.service /etc/systemd/system/
-sudo systemctl daemon-reload
-
-# 5. Point it at your tree (override ExecStart without editing the file)
-sudo systemctl edit plocate-server
-#   [Service]
-#   ExecStart=
-#   ExecStart=/usr/local/bin/plocate-server \
-#       --base-path=/srv/files \
-#       --db-path=/var/lib/plocate-server/files.db
-#
-#   Periodic refresh: set up a timer/cron that POSTs to /api/reindex,
-#   or use the maintenance dialog in the web UI for manual refresh.
-
-sudo systemctl enable --now plocate-server
-```
-
-### Resource limits
-
-The shipped unit applies these cgroup v2 constraints (edit to taste):
-
-| Directive | Value | Effect |
-| --- | --- | --- |
-| `MemoryMax` | `1G` | Hard RSS ceiling. The server holds no index in RAM. |
-| `AmbientCapabilities` | `CAP_DAC_READ_SEARCH` | Lets `updatedb` traverse the whole tree without root. |
-| `CPUWeight` | `20` | Low weight vs default 100 — yields CPU under load. |
-| `CPUQuota` | `200%` | Hard ceiling — reindex uses at most 2 cores even when idle. |
-| `Nice` | `19` | Lowest static priority. |
-| `IOSchedulingClass` | `idle` | Disk IO only served when no one else wants it. |
-
-`Nice=19` + `IOSchedulingClass=idle` are the strongest guarantees that a busy foreground
-service is never starved; `updatedb` runs inherit these too.
-`CPUQuota=200%` caps reindex at 2 cores even on an idle host; `CPUWeight`/`Nice` still
-yield under contention.
-
-### Permissions
-
-`updatedb` must read every file under `--base-path` to index it.
-The unit grants `CAP_DAC_READ_SEARCH` so the unprivileged `plocate-server` user can do
-this without running as root.
-The resulting `files.db` is owned by `plocate-server`, so the `plocate` child can read
-it back directly.
-
-### Observe
-
-```bash
-curl http://127.0.0.1:8787/api/stats | jq    # RSS, db size/mtime, last reindex
-curl http://127.0.0.1:8787/api/health | jq
-systemctl status plocate-server
-```
+Pre-commit checks run the same suite as CI — see
+[AGENTS.md](./AGENTS.md) and [CONTRIBUTING notes](./docs/en/deployment.md#development-setup).
 
 ## License
 
-MIT.
+Source code is licensed under the **MIT** License — see [LICENSE](./LICENSE).
+
+Pre-built **distribution packages** (RPM / pacman) bundle plocate, which is
+**GPLv2+**, so the combined package is GPLv2+. The plocate-server source
+itself remains MIT.
