@@ -22,6 +22,9 @@ pub struct SearchResponse {
     /// True when plocate hit the request cap, i.e. more matches likely exist.
     pub truncated: bool,
     pub items: Vec<FileItemDto>,
+    /// Server-side wall-clock time of the search (plocate child + stat
+    /// fan-out + fuzzy ranking), in milliseconds. Surfaced in the web UI.
+    pub elapsed_ms: f64,
 }
 
 impl SearchResponse {
@@ -30,6 +33,7 @@ impl SearchResponse {
             total_matched: 0,
             truncated: false,
             items: Vec::new(),
+            elapsed_ms: 0.0,
         }
     }
 }

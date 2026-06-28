@@ -51,7 +51,11 @@ export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
   return (
     <div className="py-2">
       {data && !loading && (
-        <StatusBar total={data.total_matched} truncated={data.truncated} />
+        <StatusBar
+          total={data.total_matched}
+          truncated={data.truncated}
+          elapsedMs={data.elapsed_ms}
+        />
       )}
       {loading && (
         <div className="flex items-center gap-2 px-3 py-2 text-muted-foreground text-xs">

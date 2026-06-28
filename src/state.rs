@@ -223,6 +223,7 @@ impl AppState {
         case_insensitive: bool,
         basename_only: bool,
     ) -> Result<SearchResponse> {
+        let started = Instant::now();
         if !self.db_exists() {
             return Ok(SearchResponse::empty());
         }
@@ -258,6 +259,7 @@ impl AppState {
             total_matched: total_returned,
             truncated,
             items: paged,
+            elapsed_ms: started.elapsed().as_secs_f64() * 1000.0,
         })
     }
 
@@ -277,6 +279,7 @@ impl AppState {
         offset: usize,
         case_insensitive: bool,
     ) -> Result<SearchResponse> {
+        let started = Instant::now();
         if !self.db_exists() {
             return Ok(SearchResponse::empty());
         }
@@ -336,6 +339,7 @@ impl AppState {
             total_matched,
             truncated,
             items: paged,
+            elapsed_ms: started.elapsed().as_secs_f64() * 1000.0,
         })
     }
 

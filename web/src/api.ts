@@ -13,6 +13,7 @@ export type SearchResponse = {
   total_matched: number
   truncated: boolean
   items: FileItem[]
+  elapsed_ms: number
 }
 
 export type HealthResponse = {

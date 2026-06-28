@@ -48,3 +48,11 @@ export function formatBytes(bytes: number | null | undefined): string {
   }
   return `${val.toFixed(val < 10 && i > 0 ? 1 : 0)} ${units[i]}`
 }
+
+/// Format a server-side query latency in milliseconds, auto-scaling to
+/// microseconds (sub-ms) or seconds (≥1s) for display.
+export function formatLatency(ms: number): string {
+  if (ms < 1) return `${Math.round(ms * 1000)} µs`
+  if (ms < 1000) return `${ms.toFixed(ms < 10 ? 1 : 0)} ms`
+  return `${(ms / 1000).toFixed(2)} s`
+}

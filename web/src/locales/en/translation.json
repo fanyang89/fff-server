@@ -22,7 +22,8 @@
   "status": {
     "count_one": "{{count}} item",
     "count_other": "{{count}} items",
-    "truncated": "Results truncated — refine your query"
+    "truncated": "Results truncated — refine your query",
+    "elapsed": "{{dur}}"
   },
   "footer": {
     "connecting": "Connecting",

@@ -311,6 +311,7 @@ mod tests {
             total_matched: items.len(),
             truncated: false,
             items,
+            elapsed_ms: 0.0,
         }
     }
 

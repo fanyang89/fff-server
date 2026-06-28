@@ -21,7 +21,8 @@
   },
   "status": {
     "count": "共 {{count}} 项",
-    "truncated": "结果已截断，请细化查询"
+    "truncated": "结果已截断，请细化查询",
+    "elapsed": "耗时 {{dur}}"
   },
   "footer": {
     "connecting": "连接中",
