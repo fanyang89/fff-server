@@ -246,6 +246,15 @@ location /search/ {
 }
 ```
 
+Caddy example (`reverse_proxy` forwards the full URI by default, so the
+prefix is preserved without any extra option):
+
+```caddy
+files.example.com {
+    reverse_proxy /search/* 127.0.0.1:8787
+}
+```
+
 The flag accepts either a path (`/search`) or a full URL
 (`https://host/search`). A full URL is preferred because it also seeds the
 OpenAPI `servers` field with the canonical public origin, so Swagger UI's
