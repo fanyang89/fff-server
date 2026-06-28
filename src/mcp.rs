@@ -189,8 +189,16 @@ impl ServerHandler for PlocateMcpHandler {
                 String::from(env!("CARGO_PKG_VERSION")),
             ))
             .with_instructions(String::from(
-                "Filename/path search over a large indexed file tree via plocate. \
-                 Use search_files for substring/glob queries; results are relative paths.",
+                "Filename/path search over a large indexed tree (RPMs, ISOs, build \
+                 artifacts, source trees, etc.) via plocate. Sub-millisecond even at \
+                 10M+ paths — prefer search_files/glob here over a scanning glob/grep \
+                 tool, which would walk the filesystem. Matches paths only, NOT file \
+                 contents. Covers the configured index root and below; nothing outside \
+                 that root is reachable. Results are relative paths, one per line, and \
+                 may lag very recent filesystem changes until the next reindex. Use \
+                 search_files for substring or glob queries, fuzzy_search for \
+                 multi-keyword ranked matches (e.g. 'kernel x86 rpm'), glob for an \
+                 explicit glob pattern.",
             ))
     }
 }

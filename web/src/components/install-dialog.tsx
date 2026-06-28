@@ -28,6 +28,7 @@ import {
   fetchSkillMarkdown,
 } from "@/lib/install"
 
+type Mode = "auto" | "manual"
 type Tab = "skill" | "mcp" | "json"
 
 interface InstallDialogProps {
@@ -49,6 +50,11 @@ const TARGETS: { value: Target; label: string }[] = [
   { value: "project", label: "当前项目" },
 ]
 
+const MODES: { value: Mode; label: string }[] = [
+  { value: "auto", label: "一键安装" },
+  { value: "manual", label: "手动安装" },
+]
+
 const TABS: { value: Tab; label: string }[] = [
   { value: "skill", label: "SKILL.md" },
   { value: "mcp", label: "MCP 命令" },
@@ -57,6 +63,7 @@ const TABS: { value: Tab; label: string }[] = [
 
 export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
   const [open, setOpen] = useState(false)
+  const [mode, setMode] = useState<Mode>("auto")
   const [agent, setAgent] = useState<Agent>("opencode")
   const [target, setTarget] = useState<Target>("global")
   const [tab, setTab] = useState<Tab>("skill")
@@ -87,9 +94,9 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
     [instanceName, url, scope, agent, target],
   )
 
-  // Live-preview SKILL.md when on the skill tab and the form is ready.
+  // Live-preview SKILL.md only when the user is looking at it.
   useEffect(() => {
-    if (!open || tab !== "skill" || !ready) {
+    if (!open || mode !== "manual" || tab !== "skill" || !ready) {
       setSkillMd("")
       return
     }
@@ -98,7 +105,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
       setSkillMd(md ?? ""),
     )
     return () => ctrl.abort()
-  }, [open, tab, ready, origin, params])
+  }, [open, mode, tab, ready, origin, params])
 
   const oneLiner = useMemo(
     () => (ready && origin ? buildOneLiner(origin, params) : ""),
@@ -134,7 +141,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
           接入 Agent
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl sm:max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>接入到 Agent</DialogTitle>
           <DialogDescription>
@@ -142,7 +149,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <section className="space-y-2">
             <span className="text-sm font-medium">实例信息</span>
             <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 rounded-md border bg-muted/30 p-3 text-xs">
@@ -182,60 +189,74 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
           </section>
 
           <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">一键安装</span>
-              <Badge variant="secondary" className="font-normal">
-                <Terminal className="size-3" />
-                curl | bash
-              </Badge>
-            </div>
-            <pre
-              className={cn(
-                "overflow-x-auto whitespace-pre-wrap break-all rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed",
-                !ready && "opacity-50",
-              )}
-            >
-              {ready ? oneLiner : "正在获取实例信息…"}
-            </pre>
-            {sharesAgentsPath && (
-              <p className="text-muted-foreground text-xs">
-                skill 装到 <code className="font-mono">~/.agents/skills</code>，
-                opencode 与 Codex 共享此目录。
-              </p>
-            )}
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                className="gap-1.5"
-                disabled={!ready}
-                onClick={() => copy("liner", oneLiner)}
-              >
-                {copied === "liner" ? (
-                  <>
-                    <Check className="size-3.5" />
-                    已复制
-                  </>
-                ) : (
-                  <>
-                    <Copy className="size-3.5" />
-                    复制命令
-                  </>
-                )}
-              </Button>
+            <span className="text-sm font-medium">安装方式</span>
+            <div className="flex gap-1 rounded-md bg-muted/40 p-1">
+              {MODES.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setMode(m.value)}
+                  className={cn(
+                    "flex-1 rounded-[inherit] px-3 py-1.5 text-sm font-medium transition-colors",
+                    mode === m.value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {m.label}
+                </button>
+              ))}
             </div>
           </section>
 
-          <details className="group rounded-md border">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium">
-              手动安装
-              <span className="text-muted-foreground text-xs group-open:hidden">
-                展开
-              </span>
-              <span className="hidden text-xs text-muted-foreground group-open:inline">
-                收起
-              </span>
-            </summary>
-            <div className="space-y-3 border-t px-3 py-3">
+          {mode === "auto" ? (
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">一键安装</span>
+                <Badge variant="secondary" className="font-normal">
+                  <Terminal className="size-3" />
+                  curl | bash
+                </Badge>
+              </div>
+              <pre
+                className={cn(
+                  "overflow-x-auto whitespace-pre-wrap break-all rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed",
+                  !ready && "opacity-50",
+                )}
+              >
+                {ready ? oneLiner : "正在获取实例信息…"}
+              </pre>
+              {sharesAgentsPath && (
+                <p className="text-muted-foreground text-xs">
+                  skill 装到{" "}
+                  <code className="font-mono">~/.agents/skills</code>，opencode
+                  与 Codex 共享此目录。
+                </p>
+              )}
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={!ready}
+                  onClick={() => copy("liner", oneLiner)}
+                >
+                  {copied === "liner" ? (
+                    <>
+                      <Check className="size-3.5" />
+                      已复制
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5" />
+                      复制命令
+                    </>
+                  )}
+                </Button>
+              </div>
+            </section>
+          ) : (
+            <section className="space-y-2">
+              <span className="text-sm font-medium">手动安装</span>
               <div className="flex gap-1">
                 {TABS.map((t) => (
                   <button
@@ -273,8 +294,8 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
                   )
                 }
               />
-            </div>
-          </details>
+            </section>
+          )}
 
           <div className="flex justify-end">
             <Button
@@ -349,8 +370,8 @@ function SnippetBlock({
   onCopy: () => void
 }) {
   return (
-    <div className="relative">
-      <pre className="max-h-60 overflow-auto rounded-md border bg-muted/40 p-3 pr-10 font-mono text-xs leading-relaxed">
+    <div className="relative min-w-0">
+      <pre className="max-h-60 min-w-0 overflow-auto whitespace-pre rounded-md border bg-muted/40 p-3 pr-10 font-mono text-xs leading-relaxed">
         {value || "（等待生成）"}
       </pre>
       <Button
