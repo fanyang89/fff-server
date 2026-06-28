@@ -57,7 +57,7 @@ a workspace dir picks an ambiguous default.
 - `task build` — release musl binary (via cargo-zigbuild, needs zig 0.16+
   installed locally)
 - `task web-build` / `task web-dev` — frontend
-- `task rpm` / `task pacman` / `task packages` — Linux packages via nfpm
+- `task rpm` / `task pacman` / `task deb` / `task packages` — Linux packages via nfpm
 - `task bench-*` — load testing harness entry points
 
 `task` is also what the release workflow runs; mirroring CI locally means

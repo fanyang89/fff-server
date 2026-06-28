@@ -3,7 +3,7 @@
 支持三种部署路径，由轻到重：
 
 1. **裸二进制** —— `scp` 静态 musl 二进制 + 手写 systemd unit。
-2. **Linux 软件包** —— `task rpm` / `task pacman`，安装二进制、内置 musl
+2. **Linux 软件包** —— `task rpm` / `task pacman` / `task deb`，安装二进制、内置 musl
    `plocate`/`updatedb`、systemd unit 和 env 文件。
 3. **容器** —— 在任何 OCI 运行时下跑静态二进制；二进制无 libc 依赖，
    `FROM scratch` 即可。
@@ -41,14 +41,15 @@ sudo systemctl edit plocate-server
 sudo systemctl enable --now plocate-server
 ```
 
-## Linux 软件包（RPM / pacman）
+## Linux 软件包（RPM / pacman / deb）
 
 由 [nfpm](https://github.com/goreleaser/nfpm) 通过 `Taskfile.yml` 构建：
 
 ```bash
 task rpm           # → dist/plocate-server-<ver>.x86_64.rpm
 task pacman        # → dist/plocate-server-<ver>-1-x86_64.pkg.tar.zst
-task packages      # 两者都构建
+task deb           # → dist/plocate-server-<ver>_amd64.deb
+task packages      # 三者都构建
 ```
 
 软件包内含三个二进制、三个 systemd unit、一个 env 文件和状态目录：

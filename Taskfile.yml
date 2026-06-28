@@ -147,11 +147,31 @@ tasks:
       - mkdir -p dist
       - nfpm package --config packaging/nfpm.yaml --packager archlinux --target dist/
 
+  deb:
+    desc: Build the .deb package via nFPM (depends on build + plocate)
+    preconditions:
+      - sh: command -v nfpm >/dev/null
+        msg: "nfpm not installed (go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest)"
+    deps: [build, plocate]
+    env:
+      VERSION: "{{.VERSION}}"
+    sources:
+      - packaging/**/*
+      - target/x86_64-unknown-linux-musl/release/plocate-server
+      - dist/musl/plocate
+      - dist/musl/updatedb
+    generates:
+      - "dist/plocate-server-*.deb"
+    cmds:
+      - mkdir -p dist
+      - nfpm package --config packaging/nfpm.yaml --packager deb --target dist/
+
   packages:
-    desc: Build both RPM and pacman packages
+    desc: Build RPM, pacman, and deb packages
     cmds:
       - task: rpm
       - task: pacman
+      - task: deb
 
   inspect:
     desc: Report whether the built binary is statically linked and its size

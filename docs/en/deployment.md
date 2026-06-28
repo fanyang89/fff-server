@@ -3,7 +3,7 @@
 Three supported paths, from lightest to heaviest:
 
 1. **Bare binary** — `scp` the static musl binary + a hand-written systemd unit.
-2. **Linux package** — `task rpm` / `task pacman`, installs the binary, vendored
+2. **Linux package** — `task rpm` / `task pacman` / `task deb`, installs the binary, vendored
    musl `plocate`/`updatedb`, systemd units, and an env file.
 3. **Container** — run the static binary under any OCI runtime; the binary has
    no libc dependency, so `FROM scratch` works.
@@ -41,14 +41,15 @@ sudo systemctl edit plocate-server
 sudo systemctl enable --now plocate-server
 ```
 
-## Linux packages (RPM / pacman)
+## Linux packages (RPM / pacman / deb)
 
 Built by [nfpm](https://github.com/goreleaser/nfpm) via `Taskfile.yml`:
 
 ```bash
 task rpm           # → dist/plocate-server-<ver>.x86_64.rpm
 task pacman        # → dist/plocate-server-<ver>-1-x86_64.pkg.tar.zst
-task packages      # both
+task deb           # → dist/plocate-server-<ver>_amd64.deb
+task packages      # all three
 ```
 
 The package bundles three binaries, three systemd units, an env file, and

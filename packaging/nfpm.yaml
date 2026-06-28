@@ -37,6 +37,11 @@ overrides:
       - shadow
       - systemd
       - curl
+  deb:
+    depends:
+      - adduser
+      - systemd
+      - curl
 
 contents:
   # --- binaries (all fully static musl) ---
@@ -95,4 +100,7 @@ scripts:
   postremove: packaging/scripts/postrm.sh
 
 rpm:
+  compression: zstd
+
+deb:
   compression: zstd

@@ -123,7 +123,7 @@ task check          # cargo check
 task web-dev        # Vite dev server (proxies API to :8787)
 task run            # cargo run (gnu dev build)
 task build          # release musl binary (needs zig)
-task packages       # RPM + pacman via nfpm
+task packages       # RPM + pacman + deb via nfpm
 ```
 
 Pre-commit checks run the same suite as CI — see
@@ -133,6 +133,6 @@ Pre-commit checks run the same suite as CI — see
 
 Source code is licensed under the **MIT** License — see [LICENSE](./LICENSE).
 
-Pre-built **distribution packages** (RPM / pacman) bundle plocate, which is
-**GPLv2+**, so the combined package is GPLv2+. The plocate-server source
-itself remains MIT.
+Pre-built **distribution packages** (RPM / pacman / deb) bundle plocate,
+which is **GPLv2+**, so the combined package is GPLv2+. The plocate-server
+source itself remains MIT.
