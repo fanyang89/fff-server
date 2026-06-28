@@ -1,0 +1,18 @@
+[package]
+name = "bench"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Load testing harness for plocate-server"
+
+[dependencies]
+rlt = "0.5"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["http2"] }
+clap = { version = "4", features = ["derive"] }
+url = "2"
+anyhow = "1"
+
+[[bin]]
+name = "bench"
+path = "src/main.rs"

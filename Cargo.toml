@@ -30,3 +30,7 @@ utoipa-swagger-ui = { version = "8", features = ["axum"] }
 rmcp = { version = "1.7", features = ["server", "macros", "transport-streamable-http-server"] }
 
 nucleo-matcher = "0.3"
+
+[workspace]
+members = [".", "bench"]
+resolver = "2"
