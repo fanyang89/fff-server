@@ -122,15 +122,74 @@ impl Config {
     pub fn resolved_db_path(&self) -> PathBuf {
         self.db_path.clone().unwrap_or_else(|| {
             let base = std::env::var("XDG_DATA_HOME")
+                .ok()
+                .filter(|s| !s.is_empty())
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| home_dir().join(".local").join("share"));
+                .or_else(|| {
+                    let home = std::env::var("HOME").ok().filter(|s| !s.is_empty());
+                    match home {
+                        // HOME empty/unset (e.g. under systemd with no
+                        // Home= set) — fall back to the canonical service
+                        // data dir instead of writing into the CWD. Without
+                        // this the db could land in /.local/share/... which
+                        // is read-only under ProtectSystem=strict and would
+                        // crash-loop the service.
+                        Some(h) => Some(PathBuf::from(h).join(".local").join("share")),
+                        None => {
+                            tracing::warn!(
+                                "neither XDG_DATA_HOME nor HOME is set; \
+                                 defaulting db path to /var/lib/plocate-server"
+                            );
+                            Some(PathBuf::from("/var/lib/plocate-server"))
+                        }
+                    }
+                })
+                .expect("fallback always yields Some");
             base.join("plocate-server").join("files.db")
         })
     }
 }
 
-fn home_dir() -> PathBuf {
-    std::env::var("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("."))
+#[cfg(test)]
+mod tests {
+    use super::Config;
+    use std::path::PathBuf;
+
+    fn cfg(db_path: Option<PathBuf>) -> Config {
+        Config {
+            base_path: PathBuf::from("/tmp"),
+            bind: String::from("127.0.0.1:8787"),
+            db_path,
+            plocate_bin: String::from("plocate"),
+            updatedb_bin: String::from("updatedb"),
+            max_results: 100,
+            max_concurrent_searches: 8,
+            search_timeout_secs: 10,
+            queue_timeout_secs: 5,
+            fuzzy_candidate_cap: 1000,
+            invalidate_stat_cache_on_reindex: true,
+            updatedb_timeout_secs: 3600,
+            file_server_url: None,
+            feedback_email: None,
+            instance_name: String::from("plocate"),
+        }
+    }
+
+    /// With an explicit --db-path, resolution is identity and does NOT touch
+    /// the environment (so it is safe regardless of how the test binary is
+    /// launched). The XDG/HOME fallback branches are covered by inspection:
+    /// they only differ in which prefix the join uses, and the prefix logic
+    /// is too environment-dependent to test deterministically in a shared
+    /// process without `unsafe` env mutation (forbidden under edition 2024).
+    #[test]
+    fn resolved_db_path_explicit_wins() {
+        assert_eq!(
+            cfg(Some(PathBuf::from("/custom/files.db"))).resolved_db_path(),
+            PathBuf::from("/custom/files.db")
+        );
+        // Unset case: function still returns a well-formed path; the exact
+        // prefix depends on env vars at runtime, so we only assert suffix.
+        let p = cfg(None).resolved_db_path();
+        assert!(p.ends_with("plocate-server/files.db"));
+    }
 }
