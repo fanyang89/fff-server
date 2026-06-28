@@ -115,6 +115,20 @@ pub struct Config {
     /// alphanum + single hyphens). Defaults to "plocate".
     #[arg(long, env = "PLOCATE_SERVER_INSTANCE_NAME", default_value = "plocate")]
     pub instance_name: String,
+
+    /// Public base URL the service is served under, when mounted behind a
+    /// reverse proxy that does NOT strip the path prefix. Accepts either a
+    /// path (`/search`) or a full URL (`https://host/search`). When set:
+    ///  - All routes (REST, Swagger UI, OpenAPI, MCP, frontend) are served
+    ///    under the path prefix.
+    ///  - The OpenAPI `servers` field is populated (from the full URL when
+    ///    given, else the path prefix) so Swagger UI "Try it out" works.
+    ///  - The embedded SPA is rewritten at serve time to load assets and
+    ///    call the API under the prefix.
+    ///
+    /// When unset (default), the server is mounted at `/` as before.
+    #[arg(long, env = "PLOCATE_SERVER_PUBLIC_BASE_URL")]
+    pub public_base_url: Option<String>,
 }
 
 impl Config {
@@ -172,6 +186,7 @@ mod tests {
             file_server_url: None,
             feedback_email: None,
             instance_name: String::from("plocate"),
+            public_base_url: None,
         }
     }
 

@@ -54,6 +54,83 @@ pub struct AppState {
     /// HDD deployments may set false to avoid the post-reindex cold window.
     invalidate_stat_cache_on_reindex: bool,
     updatedb_timeout: Duration,
+    /// Public base URL prefix (e.g. "/search"); empty string means root mount.
+    /// Used by the router to nest all routes and by the frontend to rewrite
+    /// asset/API URLs at serve time.
+    pub base_url_prefix: Arc<String>,
+    /// Full public URL (scheme+host+prefix) when the operator provided one;
+    /// used to populate OpenAPI `servers`. None when only a path prefix (or
+    /// nothing) was given — clients then derive absolute URLs from their own
+    /// origin at runtime.
+    pub base_url_public: Arc<Option<String>>,
+}
+
+/// Parsed `--public-base-url` value.
+///
+/// `prefix` is the path component normalized to "/" + segments with no
+/// trailing slash, or "" for root mount. `public_url` is the original input
+/// when it was a full URL (scheme://host[/path]); used for OpenAPI servers.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BaseUrlConfig {
+    pub prefix: String,
+    pub public_url: Option<String>,
+}
+
+/// Parse a `--public-base-url` raw value into routing/runtime components.
+///
+/// Accepted forms:
+/// - `None` / empty → root mount (prefix="", public_url=None)
+/// - `/search` or `search` or `/search/` → prefix="/search", public_url=None
+/// - `https://host/search` → prefix="/search", public_url=Some(input)
+/// - `https://host` → prefix="", public_url=Some(input)
+///
+/// The prefix is used for in-process router nesting and SPA rewriting; the
+/// full URL (when supplied) is preferred for the OpenAPI `servers` field so
+/// Swagger UI "Try it out" targets the canonical public origin.
+pub fn parse_base_url(raw: Option<&str>) -> BaseUrlConfig {
+    let raw = match raw.map(str::trim) {
+        Some(s) if !s.is_empty() => s,
+        _ => return BaseUrlConfig::default(),
+    };
+
+    // Full URL: split at the path so the router still nests under the path
+    // component, but keep the original as the public canonical URL.
+    if let Some(scheme_idx) = raw.find("://") {
+        let after_scheme = &raw[scheme_idx + 3..];
+        // Path starts at the first '/' after the host[:port].
+        let path = match after_scheme.find('/') {
+            Some(i) => &after_scheme[i..],
+            None => "",
+        };
+        return BaseUrlConfig {
+            prefix: normalize_prefix(path),
+            public_url: Some(strip_trailing_slash(raw)),
+        };
+    }
+
+    BaseUrlConfig {
+        prefix: normalize_prefix(raw),
+        public_url: None,
+    }
+}
+
+/// Normalize a path component to "" or "/seg[/seg...]" with no trailing slash.
+fn normalize_prefix(p: &str) -> String {
+    let p = p.trim_start_matches('/');
+    if p.is_empty() {
+        return String::new();
+    }
+    let p = p.trim_end_matches('/');
+    format!("/{p}")
+}
+
+fn strip_trailing_slash(s: &str) -> String {
+    let trimmed = s.trim_end_matches('/');
+    if trimmed.is_empty() {
+        "/".to_string()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 /// Upper bound on the stat cache size. Each entry is ~100 B, so this caps
@@ -86,6 +163,7 @@ impl AppState {
             std::fs::create_dir_all(parent)?;
         }
         crate::limits::validate_skill_name(&cfg.instance_name)?;
+        let parsed = parse_base_url(cfg.public_base_url.as_deref());
         Ok(Self {
             base_path: Arc::new(base_path),
             db_path: Arc::new(db_path),
@@ -105,6 +183,8 @@ impl AppState {
             fuzzy_candidate_cap: cfg.fuzzy_candidate_cap.max(1),
             invalidate_stat_cache_on_reindex: cfg.invalidate_stat_cache_on_reindex,
             updatedb_timeout: Duration::from_secs(cfg.updatedb_timeout_secs),
+            base_url_prefix: Arc::new(parsed.prefix.clone()),
+            base_url_public: Arc::new(parsed.public_url.clone()),
         })
     }
 
@@ -636,7 +716,7 @@ pub fn proc_status() -> io::Result<(u64, u32)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cache, ReindexGuard, enrich_glob, parse_paths};
+    use super::{Cache, BaseUrlConfig, ReindexGuard, enrich_glob, parse_base_url, parse_paths};
     use nucleo_matcher::Matcher;
     use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
     use nucleo_matcher::{Config, Utf32Str};
@@ -760,5 +840,49 @@ mod tests {
         );
         // And a fresh "trigger" must see the cleared flag.
         assert!(!flag.swap(true, Ordering::AcqRel));
+    }
+
+    #[test]
+    fn parse_base_url_none_or_empty() {
+        assert_eq!(parse_base_url(None), BaseUrlConfig::default());
+        assert_eq!(parse_base_url(Some("")), BaseUrlConfig::default());
+        assert_eq!(parse_base_url(Some("   ")), BaseUrlConfig::default());
+    }
+
+    #[test]
+    fn parse_base_url_bare_path_normalizes() {
+        assert_eq!(
+            parse_base_url(Some("/search")).prefix.as_str(),
+            "/search"
+        );
+        // No leading slash, trailing slash, surrounding whitespace — all
+        // collapse to the same normalized form.
+        assert_eq!(parse_base_url(Some("search")).prefix, "/search");
+        assert_eq!(parse_base_url(Some("/search/")).prefix, "/search");
+        assert_eq!(parse_base_url(Some(" /search/ ")).prefix, "/search");
+        // Multi-segment prefix is preserved.
+        assert_eq!(parse_base_url(Some("/tools/search")).prefix, "/tools/search");
+        // Bare slash → root mount (empty prefix).
+        assert_eq!(parse_base_url(Some("/")).prefix, "");
+        assert!(parse_base_url(Some("/search")).public_url.is_none());
+    }
+
+    #[test]
+    fn parse_base_url_full_url_keeps_canonical_and_extracts_path() {
+        let r = parse_base_url(Some("https://example.com/search"));
+        assert_eq!(r.prefix, "/search");
+        assert_eq!(r.public_url.as_deref(), Some("https://example.com/search"));
+
+        // http + port + trailing slash
+        let r = parse_base_url(Some("http://host:8080/search/"));
+        assert_eq!(r.prefix, "/search");
+        assert_eq!(r.public_url.as_deref(), Some("http://host:8080/search"));
+
+        // URL with no path component → root mount, but canonical URL kept
+        // (useful when the operator wants OpenAPI servers to point at the
+        // host without a path).
+        let r = parse_base_url(Some("https://example.com"));
+        assert_eq!(r.prefix, "");
+        assert_eq!(r.public_url.as_deref(), Some("https://example.com"));
     }
 }

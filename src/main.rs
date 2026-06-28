@@ -45,7 +45,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = tokio::net::TcpListener::bind(&cfg.bind).await?;
     let addr = listener.local_addr()?;
-    tracing::info!(%addr, swagger = format!("http://{addr}/swagger-ui"), "listening");
+    let prefix = state.base_url_prefix.as_str();
+    let swagger_path = if prefix.is_empty() {
+        "/swagger-ui".to_string()
+    } else {
+        format!("{prefix}/swagger-ui")
+    };
+    tracing::info!(
+        %addr,
+        swagger = format!("http://{addr}{swagger_path}"),
+        base_url_prefix = %if prefix.is_empty() { "/" } else { prefix },
+        "listening"
+    );
 
     axum::serve(listener, router(state))
         .with_graceful_shutdown(shutdown_signal())

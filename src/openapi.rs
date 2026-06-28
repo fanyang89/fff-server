@@ -1,3 +1,4 @@
+use utoipa::openapi::Server;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -38,3 +39,17 @@ use utoipa::OpenApi;
     ),
 )]
 pub struct ApiDoc;
+
+impl ApiDoc {
+    /// Build the OpenAPI document, optionally populated with a `servers`
+    /// entry. When the server is mounted behind a path prefix (or canonical
+    /// public URL), Swagger UI's "Try it out" needs `servers` set so it
+    /// targets the prefixed endpoints instead of the root.
+    pub fn openapi_with_server(server: Option<&str>) -> utoipa::openapi::OpenApi {
+        let mut doc = Self::openapi();
+        if let Some(url) = server.filter(|s| !s.is_empty()) {
+            doc.servers = Some(vec![Server::new(url)]);
+        }
+        doc
+    }
+}
