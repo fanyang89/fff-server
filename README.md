@@ -99,6 +99,7 @@ All flags have matching environment variables.
 | `--file-server-url` | `PLOCATE_SERVER_FILE_SERVER_URL` | *(unset)* |
 | `--feedback-email` | `PLOCATE_SERVER_FEEDBACK_EMAIL` | *(unset)* |
 | `--instance-name` | `PLOCATE_SERVER_INSTANCE_NAME` | `plocate` |
+| `--public-base-url` | `PLOCATE_SERVER_PUBLIC_BASE_URL` | *(unset)* |
 
 ## API
 
@@ -218,6 +219,38 @@ curl -s http://127.0.0.1:8787/mcp \
 
 The `/mcp` endpoint sits behind the same reverse proxy / auth boundary as the REST API —
 point the agent at `https://your-host/mcp`.
+
+## Mounting under a path prefix
+
+By default the server mounts at `/`. To serve it under a sub-path (e.g.
+`https://files.example.com/search/`), pass `--public-base-url` and configure
+the reverse proxy to forward **without** stripping the prefix:
+
+```bash
+plocate-server --base-path /srv/files --public-base-url /search
+# or with a canonical public URL (preferred — populates OpenAPI `servers`):
+plocate-server --base-path /srv/files --public-base-url https://files.example.com/search
+```
+
+Then every surface moves under the prefix: `/search/api/...`,
+`/search/swagger-ui`, `/search/openapi.json`, `/search/mcp`, and the SPA at
+`/search/`. The bare prefix (`/search`) redirects to `/search/`; unprefixed
+paths (`/api/health`, `/`) return 404 so misrouted requests are obvious.
+
+nginx example (note: no trailing slash on `proxy_pass`, so the prefix is
+preserved):
+
+```nginx
+location /search/ {
+    proxy_pass http://127.0.0.1:8787;   # no trailing slash -> prefix kept
+}
+```
+
+The flag accepts either a path (`/search`) or a full URL
+(`https://host/search`). A full URL is preferred because it also seeds the
+OpenAPI `servers` field with the canonical public origin, so Swagger UI's
+"Try it out" works out of the box. With just a path, the SPA derives absolute
+URLs from the browser origin at runtime.
 
 ## Deployment & resource control
 
