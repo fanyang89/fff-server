@@ -269,7 +269,9 @@ impl AppState {
         for p in patterns {
             cmd.arg(enrich_glob(p));
         }
-        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         let output = run_with_timeout(&mut cmd, self.search_timeout, "plocate").await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -309,7 +311,9 @@ impl AppState {
         // anywhere in the path — matching the intuition of "find by name".
         let pattern = enrich_glob(pattern);
         cmd.arg("--").arg(pattern);
-        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         let output = run_with_timeout(&mut cmd, self.search_timeout, "plocate").await?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -438,6 +442,7 @@ async fn run_updatedb(state: &AppState) -> Result<()> {
         .arg(&*state.db_path)
         .arg("--require-visibility")
         .arg("no")
+        .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
     let output = run_with_timeout(&mut cmd, state.updatedb_timeout, "updatedb").await?;
