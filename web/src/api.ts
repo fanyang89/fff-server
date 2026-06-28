@@ -15,6 +15,7 @@ export type SearchResponse = {
 export type HealthResponse = {
   ok: boolean
   base_path: string
+  instance_name: string
   db_present: boolean
   db_mtime_unix: number | null
   db_size_bytes: number | null

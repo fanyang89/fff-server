@@ -38,7 +38,10 @@ export default function App() {
             </a>
           </Button>
           <MaintenanceDialog />
-          <InstallDialog />
+          <InstallDialog
+            instanceName={health.data?.instance_name ?? "plocate"}
+            basePath={health.data?.base_path ?? null}
+          />
         </div>
       </header>
 

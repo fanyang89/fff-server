@@ -1,4 +1,4 @@
-export type Agent = "opencode" | "claude" | "generic"
+export type Agent = "opencode" | "claude" | "codex" | "generic"
 export type Target = "global" | "project"
 
 export interface InstallParams {
@@ -61,6 +61,8 @@ export function buildMcpAddCommand(p: InstallParams): string {
       return `opencode mcp add ${p.name} --url ${shellQuote(p.url)}`
     case "claude":
       return `claude mcp add --transport http ${p.name} ${shellQuote(p.url)}`
+    case "codex":
+      return `codex mcp add ${p.name} --url ${shellQuote(p.url)}`
     case "generic":
       return `# MCP endpoint: ${p.url}`
   }
