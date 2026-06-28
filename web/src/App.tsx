@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer"
 import { HeaderActions } from "@/components/header-actions"
 import { Results } from "@/components/results"
 import { SearchBar } from "@/components/search-bar"
+import { Trending } from "@/components/trending"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useFileServer } from "@/hooks/use-file-server"
 import { useHealth } from "@/hooks/use-health"
@@ -72,6 +73,7 @@ export default function App() {
 
       <main className="flex flex-1 flex-col gap-4">
         <SearchBar value={query} onChange={setQuery} />
+        <Trending onPick={setQuery} />
         <div className="flex-1">
           <Results
             state={state}

@@ -57,6 +57,16 @@ export type FeedbackConfig = {
   email: string | null
 }
 
+export type TrendingItem = {
+  query: string
+  count: number
+}
+
+export type TrendingResponse = {
+  window_secs: number
+  items: TrendingItem[]
+}
+
 export class SearchError extends Error {
   readonly retryable: boolean
 
@@ -161,6 +171,17 @@ export async function fetchFeedback(
   })
   if (!res.ok) throw new Error(`feedback failed (${res.status})`)
   return (await res.json()) as FeedbackConfig
+}
+
+export async function fetchTrending(
+  signal: AbortSignal,
+): Promise<TrendingResponse> {
+  const res = await fetch(withPrefix("/api/trending"), {
+    signal,
+    headers: { accept: "application/json" },
+  })
+  if (!res.ok) throw new Error(`trending failed (${res.status})`)
+  return (await res.json()) as TrendingResponse
 }
 
 /// Build a file-browse URL by appending a result's relative path to the

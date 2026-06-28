@@ -105,3 +105,20 @@ pub struct FeedbackResponse {
     /// Contact email for bug reports and feedback, or null if unconfigured.
     pub email: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TrendingItem {
+    /// Normalized query string (trimmed, lowercased).
+    pub query: String,
+    /// Hit count within the rolling window.
+    pub count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TrendingResponse {
+    /// Window length (seconds) the counts cover, e.g. 86400 for last 24h.
+    /// 0 when trending is disabled.
+    pub window_secs: u64,
+    /// Top-N queries by descending count.
+    pub items: Vec<TrendingItem>,
+}

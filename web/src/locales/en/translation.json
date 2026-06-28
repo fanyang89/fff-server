@@ -15,6 +15,9 @@
     "ariaClear": "Clear",
     "shortcut": "⌘K"
   },
+  "trending": {
+    "title": "Trending"
+  },
   "results": {
     "idle": "Type a keyword to start searching",
     "retry": "Retry",

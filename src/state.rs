@@ -18,6 +18,7 @@ use nucleo_matcher::{Matcher, Utf32Str};
 use crate::config::Config;
 use crate::dto::{FileItemDto, SearchResponse};
 use crate::error::{AppError, Result};
+use crate::trending::TrendingTracker;
 
 /// Indexing root + plocate database handles shared with every handler.
 #[derive(Clone)]
@@ -68,6 +69,8 @@ pub struct AppState {
     /// prefix is empty OR the frontend has not been built (served verbatim
     /// / "not built" path respectively).
     pub index_html_override: Arc<Option<Vec<u8>>>,
+    /// Rolling-window trending-searches tracker. None when `--trending-enabled=false`.
+    pub trending: Option<Arc<TrendingTracker>>,
 }
 
 /// Parsed `--public-base-url` value.
@@ -193,6 +196,16 @@ impl AppState {
             index_html_override: Arc::new(crate::routes::frontend::rewrite_index_html(
                 &parsed.prefix,
             )),
+            trending: if cfg.trending_enabled {
+                Some(TrendingTracker::with_top_n(
+                    cfg.trending_window_secs,
+                    cfg.trending_bucket_secs,
+                    cfg.trending_min_query_len,
+                    cfg.trending_top_n,
+                ))
+            } else {
+                None
+            },
         })
     }
 
@@ -255,6 +268,9 @@ impl AppState {
         let total_returned = items.len();
         let truncated = (total_returned == cap && cap > 0) || stat_truncated;
         let paged: Vec<FileItemDto> = items.into_iter().skip(offset).take(limit).collect();
+        if let Some(t) = &self.trending {
+            t.record(query);
+        }
         Ok(SearchResponse {
             total_matched: total_returned,
             truncated,
@@ -335,6 +351,9 @@ impl AppState {
             .take(limit)
             .map(|(_, it)| it)
             .collect();
+        if let Some(t) = &self.trending {
+            t.record(query);
+        }
         Ok(SearchResponse {
             total_matched,
             truncated,

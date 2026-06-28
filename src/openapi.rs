@@ -19,6 +19,7 @@ use utoipa::openapi::Server;
         crate::routes::health::feedback,
         crate::routes::stats::stats,
         crate::routes::reindex::reindex,
+        crate::routes::trending::trending,
     ),
     components(schemas(
         crate::dto::FileItemDto,
@@ -32,6 +33,8 @@ use utoipa::openapi::Server;
         crate::dto::ReindexResponse,
         crate::dto::FileServerResponse,
         crate::dto::FeedbackResponse,
+        crate::dto::TrendingItem,
+        crate::dto::TrendingResponse,
     )),
     tags(
         (name = "search", description = "Filename / path search via plocate"),

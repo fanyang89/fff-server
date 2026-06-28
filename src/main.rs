@@ -6,6 +6,7 @@ mod mcp;
 mod openapi;
 mod routes;
 mod state;
+mod trending;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;

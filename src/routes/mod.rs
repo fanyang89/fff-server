@@ -3,6 +3,7 @@ pub mod health;
 pub mod reindex;
 pub mod search;
 pub mod stats;
+pub mod trending;
 
 use std::sync::Arc;
 
@@ -62,6 +63,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/base-path", get(health::base_path))
         .route("/api/file-server", get(health::file_server))
         .route("/api/feedback", get(health::feedback))
+        .route("/api/trending", get(trending::trending))
         .merge(
             SwaggerUi::new("/swagger-ui")
                 .url(
@@ -129,6 +131,11 @@ mod tests {
             file_server_url: None,
             feedback_email: None,
             instance_name: String::from("plocate"),
+            trending_enabled: false,
+            trending_window_secs: 86_400,
+            trending_bucket_secs: 3_600,
+            trending_min_query_len: 2,
+            trending_top_n: 20,
             public_base_url: public_base_url.map(str::to_owned),
         }
     }

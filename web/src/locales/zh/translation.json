@@ -15,6 +15,9 @@
     "ariaClear": "清除",
     "shortcut": "⌘K"
   },
+  "trending": {
+    "title": "热门搜索"
+  },
   "results": {
     "idle": "输入关键字开始搜索",
     "retry": "重试",

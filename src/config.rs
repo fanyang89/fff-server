@@ -116,6 +116,47 @@ pub struct Config {
     #[arg(long, env = "PLOCATE_SERVER_INSTANCE_NAME", default_value = "plocate")]
     pub instance_name: String,
 
+    /// Enable the trending-searches leaderboard (`/api/trending` and the
+    /// "hot searches" panel in the UI). Each successful search query bumps a
+    /// rolling-window counter; the top-N most frequent queries are exposed.
+    /// Pure in-memory; a restart zeroes the counts.
+    #[arg(long, env = "PLOCATE_SERVER_TRENDING_ENABLED", default_value_t = true)]
+    pub trending_enabled: bool,
+
+    /// Sliding-window length (seconds) for trending counts. Default 24h.
+    /// Counts older than this drop out of the leaderboard.
+    #[arg(
+        long,
+        env = "PLOCATE_SERVER_TRENDING_WINDOW_SECS",
+        default_value_t = 86_400
+    )]
+    pub trending_window_secs: u64,
+
+    /// Bucket size (seconds) for the trending sliding window. Default 1h.
+    /// The window holds `window / bucket` buckets; advancing rotates them.
+    /// Smaller buckets = fresher leaderboard, more rotation churn.
+    #[arg(
+        long,
+        env = "PLOCATE_SERVER_TRENDING_BUCKET_SECS",
+        default_value_t = 3_600
+    )]
+    pub trending_bucket_secs: u64,
+
+    /// Minimum normalized query length (in chars) to be eligible for the
+    /// trending board. Filters out single-character / accidental keystrokes.
+    /// Default 2.
+    #[arg(
+        long,
+        env = "PLOCATE_SERVER_TRENDING_MIN_QUERY_LEN",
+        default_value_t = 2
+    )]
+    pub trending_min_query_len: usize,
+
+    /// Default leaderboard size for `/api/trending` when no `?limit` is given.
+    /// Clamped to 1..=100. Default 20.
+    #[arg(long, env = "PLOCATE_SERVER_TRENDING_TOP_N", default_value_t = 20)]
+    pub trending_top_n: usize,
+
     /// Public base URL the service is served under, when mounted behind a
     /// reverse proxy that does NOT strip the path prefix. Accepts either a
     /// path (`/search`) or a full URL (`https://host/search`). When set:
@@ -186,6 +227,11 @@ mod tests {
             file_server_url: None,
             feedback_email: None,
             instance_name: String::from("plocate"),
+            trending_enabled: true,
+            trending_window_secs: 86_400,
+            trending_bucket_secs: 3_600,
+            trending_min_query_len: 2,
+            trending_top_n: 20,
             public_base_url: None,
         }
     }
