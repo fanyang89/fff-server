@@ -237,6 +237,7 @@ name = "bench"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "reqwest",
  "rlt",
