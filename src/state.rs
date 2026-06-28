@@ -312,7 +312,9 @@ impl AppState {
     async fn acquire_permit(&self) -> Result<tokio::sync::SemaphorePermit<'_>> {
         match tokio::time::timeout(self.queue_timeout, self.search_concurrency.acquire()).await {
             Ok(Ok(p)) => Ok(p),
-            Ok(Err(_)) => Err(AppError::Internal("search concurrency semaphore closed".into())),
+            Ok(Err(_)) => Err(AppError::Internal(
+                "search concurrency semaphore closed".into(),
+            )),
             Err(_) => Err(AppError::QueueTimeout(format!(
                 "no concurrency slot within {}s (saturated at {})",
                 self.queue_timeout.as_secs(),
