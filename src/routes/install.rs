@@ -18,7 +18,6 @@ use serde::Deserialize;
 const SKILL_TMPL: &str = include_str!("../../install/SKILL.md.tmpl");
 const INSTALL_SH_TMPL: &str = include_str!("../../install/install.sh.tmpl");
 
-const NAME_MAX: usize = 64;
 const URL_MAX: usize = 2048;
 const SCOPE_MAX: usize = 200;
 const NOTES_MAX: usize = 1000;
@@ -69,7 +68,7 @@ pub async fn install_sh(Query(mut p): Query<InstallParams>, headers: HeaderMap) 
 // --- validation --------------------------------------------------------------
 
 fn validate_all(p: &InstallParams, agent: &str, target: &str) -> Result<(), String> {
-    validate_name(&p.name)?;
+    crate::limits::validate_skill_name(&p.name).map_err(|e| e.to_string())?;
     validate_url(&p.url)?;
     validate_choice("agent", agent, &["opencode", "claude", "generic"])?;
     validate_choice("target", target, &["global", "project"])?;
@@ -78,23 +77,6 @@ fn validate_all(p: &InstallParams, agent: &str, target: &str) -> Result<(), Stri
     }
     if let Some(n) = p.notes.as_deref() {
         check_len("notes", n, NOTES_MAX)?;
-    }
-    Ok(())
-}
-
-fn validate_name(name: &str) -> Result<(), String> {
-    check_len("name", name, NAME_MAX)?;
-    if name.is_empty() || name == "-" || name.contains("--") {
-        return Err(format!("invalid name: {name:?}"));
-    }
-    let bad = name
-        .chars()
-        .find(|c| !(c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-'));
-    if let Some(c) = bad {
-        return Err(format!("invalid name char {c:?}: only a-z 0-9 - allowed"));
-    }
-    if name.starts_with('-') || name.ends_with('-') {
-        return Err(format!("invalid name: must not start or end with '-': {name:?}"));
     }
     Ok(())
 }
@@ -224,25 +206,6 @@ mod tests {
             agent: None,
             target: None,
         }
-    }
-
-    #[test]
-    fn name_validation_accepts_legal() {
-        assert!(validate_name("plocate").is_ok());
-        assert!(validate_name("my-files-2").is_ok());
-        assert!(validate_name("a").is_ok());
-    }
-
-    #[test]
-    fn name_validation_rejects_illegal() {
-        assert!(validate_name("").is_err());
-        assert!(validate_name("-x").is_err());
-        assert!(validate_name("x-").is_err());
-        assert!(validate_name("a--b").is_err());
-        assert!(validate_name("Plocate").is_err()); // uppercase
-        assert!(validate_name("a_b").is_err()); // underscore
-        assert!(validate_name("a.b").is_err()); // dot
-        assert!(validate_name(&"x".repeat(NAME_MAX + 1)).is_err());
     }
 
     #[test]

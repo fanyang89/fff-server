@@ -93,6 +93,7 @@ All flags have matching environment variables.
 | `--max-concurrent-searches` | `PLOCATE_SERVER_MAX_CONCURRENT_SEARCHES` | `8` |
 | `--search-timeout-secs` | `PLOCATE_SERVER_SEARCH_TIMEOUT_SECS` | `10` |
 | `--updatedb-timeout-secs` | `PLOCATE_SERVER_UPDATEDB_TIMEOUT_SECS` | `3600` |
+| `--instance-name` | `PLOCATE_SERVER_INSTANCE_NAME` | `plocate` |
 
 ## API
 

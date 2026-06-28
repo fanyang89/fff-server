@@ -28,6 +28,7 @@ pub async fn health(State(state): State<AppState>) -> Result<Json<HealthResponse
     Ok(Json(HealthResponse {
         ok,
         base_path: state.base_path.to_string_lossy().into_owned(),
+        instance_name: state.instance_name.as_str().to_owned(),
         db_present,
         db_mtime_unix,
         db_size_bytes,

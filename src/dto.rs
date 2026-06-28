@@ -38,6 +38,8 @@ impl SearchResponse {
 pub struct HealthResponse {
     pub ok: bool,
     pub base_path: String,
+    /// Skill/MCP instance name surfaced in the install wizard.
+    pub instance_name: String,
     pub db_present: bool,
     pub db_mtime_unix: Option<u64>,
     pub db_size_bytes: Option<u64>,

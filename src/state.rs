@@ -29,6 +29,8 @@ pub struct AppState {
     pub max_results: usize,
     pub file_server_url: Arc<Option<String>>,
     pub feedback_email: Arc<Option<String>>,
+    /// Skill/MCP instance name surfaced via /api/health and the install wizard.
+    pub instance_name: Arc<String>,
     /// Per-path `is_dir` cache (stat results). Keyed by absolute path; values
     /// are valid for the current reindex window — cleared on reindex completion.
     /// `moka::sync::Cache` is `Clone` and shares its store internally, so no
@@ -75,6 +77,7 @@ impl AppState {
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
+        crate::limits::validate_skill_name(&cfg.instance_name)?;
         Ok(Self {
             base_path: Arc::new(base_path),
             db_path: Arc::new(db_path),
@@ -83,6 +86,7 @@ impl AppState {
             max_results: cfg.max_results,
             file_server_url: Arc::new(normalize_file_server_url(cfg.file_server_url.as_deref())),
             feedback_email: Arc::new(normalize_feedback_email(cfg.feedback_email.as_deref())),
+            instance_name: Arc::new(cfg.instance_name.clone()),
             stat_cache: Cache::new(STAT_CACHE_CAPACITY),
             reindexing: Arc::new(AtomicBool::new(false)),
             last_run: Arc::new(Mutex::new(None)),
