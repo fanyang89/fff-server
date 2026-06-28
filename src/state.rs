@@ -40,6 +40,9 @@ pub struct AppState {
     last_run: Arc<Mutex<Option<ReindexRecord>>>,
     search_concurrency: Arc<Semaphore>,
     search_timeout: Duration,
+    /// How long a request may wait for a concurrency slot before 503.
+    /// Distinct from `search_timeout` (which bounds the plocate run itself).
+    queue_timeout: Duration,
     updatedb_timeout: Duration,
 }
 
@@ -92,6 +95,7 @@ impl AppState {
             last_run: Arc::new(Mutex::new(None)),
             search_concurrency: Arc::new(Semaphore::new(cfg.max_concurrent_searches.max(1))),
             search_timeout: Duration::from_secs(cfg.search_timeout_secs),
+            queue_timeout: Duration::from_secs(cfg.queue_timeout_secs),
             updatedb_timeout: Duration::from_secs(cfg.updatedb_timeout_secs),
         })
     }
@@ -123,15 +127,21 @@ impl AppState {
         }
         let cap = offset.saturating_add(limit);
         // Bound concurrent plocate children; backpressure instead of fork-bomb.
-        let _permit = self
-            .search_concurrency
-            .acquire()
-            .await
-            .map_err(|_| AppError::Internal("search concurrency semaphore closed".into()))?;
+        // The wait is bounded by `queue_timeout` — after that we 503 so
+        // clients can retry rather than silent-timeout at their own end.
+        let _permit = self.acquire_permit().await?;
         let raw = self
             .run_plocate(query, Some(cap), case_insensitive, basename_only)
             .await?;
-        let items = parse_paths(&raw, &self.base_path, &self.stat_cache);
+        // Stat fan-out is moved to the blocking pool so it does not pin a
+        // tokio worker thread. On HDD-class stat latency this is the
+        // difference between 8 slots being stuck for seconds vs N slots
+        // queueing freely behind a non-blocking async frontier.
+        let base_path = self.base_path.clone();
+        let stat_cache = self.stat_cache.clone();
+        let items = tokio::task::spawn_blocking(move || parse_paths(&raw, &base_path, &stat_cache))
+            .await
+            .map_err(|e| AppError::Internal(format!("parse_paths join error: {e}")))?;
         let total_returned = items.len();
         let truncated = total_returned == cap && cap > 0;
         let paged: Vec<FileItemDto> = items.into_iter().skip(offset).take(limit).collect();
@@ -166,15 +176,18 @@ impl AppState {
         if tokens.is_empty() {
             return Ok(SearchResponse::empty());
         }
-        let _permit = self
-            .search_concurrency
-            .acquire()
-            .await
-            .map_err(|_| AppError::Internal("search concurrency semaphore closed".into()))?;
+        let _permit = self.acquire_permit().await?;
         let raw = self
             .run_plocate_multi(&tokens, FUZZY_CANDIDATE_CAP, case_insensitive)
             .await?;
-        let items = parse_paths(&raw, &self.base_path, &self.stat_cache);
+        // Stat fan-out for fuzzy is up to FUZZY_CANDIDATE_CAP=1000 paths —
+        // the heaviest path through the server. Moving it off the tokio
+        // worker is the single most important fix for HDD deployments.
+        let base_path = self.base_path.clone();
+        let stat_cache = self.stat_cache.clone();
+        let items = tokio::task::spawn_blocking(move || parse_paths(&raw, &base_path, &stat_cache))
+            .await
+            .map_err(|e| AppError::Internal(format!("parse_paths join error: {e}")))?;
         let truncated = items.len() >= FUZZY_CANDIDATE_CAP;
         // Rank with nucleo. match_paths() tunes scoring for path-like input
         // (prefers prefix/segment matches over mid-word matches).
@@ -287,6 +300,21 @@ impl AppState {
             )));
         }
         Ok(output.stdout)
+    }
+
+    /// Wait for a concurrency slot, bounded by `queue_timeout`. Returns 503
+    /// (QueueTimeout) on expiry so clients can retry / fail fast instead of
+    /// silently timing out on their end while waiting for a slot.
+    async fn acquire_permit(&self) -> Result<tokio::sync::SemaphorePermit<'_>> {
+        match tokio::time::timeout(self.queue_timeout, self.search_concurrency.acquire()).await {
+            Ok(Ok(p)) => Ok(p),
+            Ok(Err(_)) => Err(AppError::Internal("search concurrency semaphore closed".into())),
+            Err(_) => Err(AppError::QueueTimeout(format!(
+                "no concurrency slot within {}s (saturated at {})",
+                self.queue_timeout.as_secs(),
+                self.search_concurrency.available_permits()
+            ))),
+        }
     }
 
     /// Trigger a background `updatedb` run if one is not already in flight.

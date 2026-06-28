@@ -44,9 +44,20 @@ pub struct Config {
     pub max_concurrent_searches: usize,
 
     /// Per-query timeout (seconds). A plocate run exceeding this is killed and
-    /// reported as a 504.
+    /// reported as a 504. Note this bounds the plocate child + stat fan-out,
+    /// NOT the time spent waiting for a concurrency slot — see
+    /// `--queue-timeout-secs` for that.
     #[arg(long, env = "PLOCATE_SERVER_SEARCH_TIMEOUT_SECS", default_value_t = 10)]
     pub search_timeout_secs: u64,
+
+    /// Maximum time (seconds) a request waits for a concurrency slot before
+    /// returning 503. Distinct from `--search-timeout-secs`: this bounds the
+    /// queue wait (admission control), not the query itself. Set to 0 to wait
+    /// forever (legacy behavior; not recommended — clients will silent-timeout
+    /// first). 5 s is a reasonable default for HDD deployments where a single
+    /// fuzzy query can occupy a slot for seconds.
+    #[arg(long, env = "PLOCATE_SERVER_QUEUE_TIMEOUT_SECS", default_value_t = 5)]
+    pub queue_timeout_secs: u64,
 
     /// Per-reindex timeout (seconds). An updatedb run exceeding this is killed.
     /// Generous by default to accommodate very large trees (10M+ files).

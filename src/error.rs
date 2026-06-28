@@ -1,4 +1,4 @@
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde_json::json;
 use thiserror::Error;
 
@@ -14,6 +14,13 @@ pub enum AppError {
     #[error("not found: {0}")]
     NotFound(String),
 
+    /// Saturated concurrency slots within --queue-timeout-secs.
+    /// Distinct from `Timeout` (504, single-query plocate killed) — this is
+    /// admission control: the server is over-subscribed and refuses new work
+    /// so clients can retry / fail fast instead of waiting silently.
+    #[error("queue timeout: {0}")]
+    QueueTimeout(String),
+
     #[error("timeout: {0}")]
     Timeout(String),
 
@@ -28,6 +35,7 @@ impl IntoResponse for AppError {
         let status = match &self {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
+            AppError::QueueTimeout(_) => StatusCode::SERVICE_UNAVAILABLE,
             AppError::Timeout(_) => StatusCode::GATEWAY_TIMEOUT,
             AppError::Io(_) | AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
