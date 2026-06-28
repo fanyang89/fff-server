@@ -1,4 +1,5 @@
 import { CircleX, LoaderCircle, RotateCcw, SearchX } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import type { SearchState } from "@/hooks/use-search"
 import { ResultList } from "@/components/result-list"
@@ -11,13 +12,14 @@ type ResultsProps = {
 }
 
 export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
+  const { t } = useTranslation()
   const { status, data, error } = state
 
   if (status === "idle") {
     return (
       <div className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
         <SearchX className="size-8 opacity-40" />
-        <p className="text-sm">输入关键字开始搜索</p>
+        <p className="text-sm">{t("results.idle")}</p>
       </div>
     )
   }
@@ -29,7 +31,7 @@ export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
         <p className="text-sm text-muted-foreground">{error}</p>
         <Button variant="outline" size="sm" className="gap-2" onClick={onRetry}>
           <RotateCcw className="size-3.5" />
-          重试
+          {t("results.retry")}
         </Button>
       </div>
     )
@@ -39,7 +41,7 @@ export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
     return (
       <div className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
         <SearchX className="size-8 opacity-40" />
-        <p className="text-sm">无匹配结果</p>
+        <p className="text-sm">{t("results.empty")}</p>
       </div>
     )
   }
@@ -54,7 +56,7 @@ export function Results({ state, onRetry, fileServerUrl }: ResultsProps) {
       {loading && (
         <div className="flex items-center gap-2 px-3 py-2 text-muted-foreground text-xs">
           <LoaderCircle className="size-3.5 animate-spin" />
-          搜索中…
+          {t("results.loading")}
         </div>
       )}
       <ResultList

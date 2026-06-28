@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 
 type StatusBarProps = {
@@ -6,12 +7,13 @@ type StatusBarProps = {
 }
 
 export function StatusBar({ total, truncated }: StatusBarProps) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center gap-2 px-3 py-2 text-muted-foreground text-xs">
-      <span>共 {total} 项</span>
+      <span>{t("status.count", { count: total })}</span>
       {truncated && (
         <Badge variant="secondary" className="font-normal">
-          结果已截断，请细化查询
+          {t("status.truncated")}
         </Badge>
       )}
     </div>

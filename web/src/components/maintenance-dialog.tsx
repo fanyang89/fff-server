@@ -6,6 +6,7 @@ import {
   RefreshCw,
   Wrench,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { triggerReindex } from "@/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,7 @@ import { useStats } from "@/hooks/use-stats"
 import { formatBytes, formatDuration, formatRelativeTime } from "@/lib/format"
 
 export function MaintenanceDialog() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const { data, error } = useStats(open)
   const [triggering, setTriggering] = useState(false)
@@ -51,12 +53,12 @@ export function MaintenanceDialog() {
       const resp = await triggerReindex(ctrl.signal)
       setNotice(
         resp.status === "started"
-          ? { kind: "ok", text: "已开始重建索引" }
-          : { kind: "warn", text: "已有重建任务在进行中" },
+          ? { kind: "ok", text: t("maintenance.noticeStarted") }
+          : { kind: "warn", text: t("maintenance.noticeAlreadyRunning") },
       )
     } catch (e) {
       if ((e as Error).name === "AbortError") return
-      setNotice({ kind: "err", text: "触发失败，请稍后重试" })
+      setNotice({ kind: "err", text: t("maintenance.noticeFailed") })
     } finally {
       setTriggering(false)
     }
@@ -69,40 +71,40 @@ export function MaintenanceDialog() {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Wrench className="size-4" />
-          维护
+          {t("maintenance.trigger")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>维护</DialogTitle>
-          <DialogDescription>
-            查看索引状态并手动触发重建。
-          </DialogDescription>
+          <DialogTitle>{t("maintenance.title")}</DialogTitle>
+          <DialogDescription>{t("maintenance.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
           <section className="space-y-2">
-            <span className="text-sm font-medium">当前状态</span>
+            <span className="text-sm font-medium">{t("maintenance.currentState")}</span>
             {error ? (
               <p className="flex items-center gap-1.5 text-destructive text-xs">
                 <AlertTriangle className="size-3.5" />
-                无法获取状态
+                {t("maintenance.stateUnavailable")}
               </p>
             ) : reindexing ? (
               <p className="flex items-center gap-1.5 text-xs">
                 <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" />
-                索引更新中…
+                {t("maintenance.stateReindexing")}
               </p>
             ) : (
               <div className="space-y-1 text-muted-foreground text-xs">
                 <p className="flex items-center gap-1.5">
                   <span className="size-2 rounded-full bg-emerald-500" />
-                  空闲
+                  {t("maintenance.stateIdle")}
                 </p>
                 {data?.index && (
                   <p>
-                    数据库 {formatRelativeTime(data.index.db_mtime_unix)} ·{" "}
-                    {formatBytes(data.index.db_size_bytes)}
+                    {t("maintenance.dbInfo", {
+                      time: formatRelativeTime(data.index.db_mtime_unix),
+                      size: formatBytes(data.index.db_size_bytes),
+                    })}
                   </p>
                 )}
               </div>
@@ -110,9 +112,9 @@ export function MaintenanceDialog() {
           </section>
 
           <section className="space-y-2">
-            <span className="text-sm font-medium">上次重建</span>
+            <span className="text-sm font-medium">{t("maintenance.lastRebuild")}</span>
             {!last ? (
-              <p className="text-muted-foreground text-xs">无记录</p>
+              <p className="text-muted-foreground text-xs">{t("maintenance.noRecord")}</p>
             ) : (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 text-xs">
@@ -122,17 +124,19 @@ export function MaintenanceDialog() {
                       className="gap-1 font-normal text-emerald-600"
                     >
                       <CheckCircle2 className="size-3" />
-                      成功
+                      {t("maintenance.rebuildSuccess")}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="gap-1 font-normal text-destructive">
                       <AlertTriangle className="size-3" />
-                      失败
+                      {t("maintenance.rebuildFailed")}
                     </Badge>
                   )}
                   <span className="text-muted-foreground">
-                    {formatRelativeTime(last.started_at_unix)} · 耗时{" "}
-                    {formatDuration(last.duration_secs)}
+                    {t("maintenance.lastRebuildInfo", {
+                      time: formatRelativeTime(last.started_at_unix),
+                      dur: formatDuration(last.duration_secs),
+                    })}
                   </span>
                 </div>
                 {!last.success && last.error && (
@@ -155,7 +159,7 @@ export function MaintenanceDialog() {
               ) : (
                 <RefreshCw className="size-4" />
               )}
-              {reindexing ? "更新中…" : "立即重建索引"}
+              {reindexing ? t("maintenance.reindexingBtn") : t("maintenance.reindexNow")}
             </Button>
             {notice && (
               <p

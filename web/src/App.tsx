@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Code, Globe } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Footer } from "@/components/footer"
 import { MaintenanceDialog } from "@/components/maintenance-dialog"
 import { InstallDialog } from "@/components/install-dialog"
@@ -13,6 +14,7 @@ import { useHealth } from "@/hooks/use-health"
 import { useSearch } from "@/hooks/use-search"
 
 export default function App() {
+  const { t } = useTranslation()
   const [query, setQuery] = useState("")
   const debounced = useDebounce(query, 300)
   const { state, refetch } = useSearch(debounced)
@@ -22,20 +24,20 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col px-4 py-8">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold tracking-tight">plocate-web</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{t("app.brand")}</h1>
         <div className="flex items-center gap-2">
           {fileServer.url && (
             <Button asChild variant="outline" size="sm" className="gap-2">
               <a href={fileServer.url} target="_blank" rel="noreferrer">
                 <Globe className="size-4" />
-                文件服务主站
+                {t("nav.home")}
               </a>
             </Button>
           )}
           <Button asChild variant="outline" size="sm" className="gap-2">
             <a href={withPrefix("/swagger-ui")} target="_blank" rel="noreferrer">
               <Code className="size-4" />
-              API 文档
+              {t("nav.apiDocs")}
             </a>
           </Button>
           <MaintenanceDialog />

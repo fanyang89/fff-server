@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { Search, X } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Input } from "@/components/ui/input"
 import { SyntaxHelpTrigger } from "@/components/syntax-help"
 
@@ -9,6 +10,7 @@ type SearchBarProps = {
 }
 
 export function SearchBar({ value, onChange }: SearchBarProps) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLInputElement>(null)
   const hasValue = value.length > 0
 
@@ -37,12 +39,12 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="输入文件名或路径片段…"
+        placeholder={t("search.placeholder")}
         autoFocus
         autoComplete="off"
         spellCheck={false}
         className="h-12 pr-16 pl-9 text-base"
-        aria-label="搜索文件"
+        aria-label={t("search.ariaSearch")}
       />
       <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-0.5">
         <SyntaxHelpTrigger />
@@ -50,14 +52,14 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
           <button
             type="button"
             onClick={clear}
-            aria-label="清除"
+            aria-label={t("search.ariaClear")}
             className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="size-3.5" />
           </button>
         ) : (
           <kbd className="pointer-events-none select-none rounded border bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs">
-            ⌘K
+            {t("search.shortcut")}
           </kbd>
         )}
       </div>

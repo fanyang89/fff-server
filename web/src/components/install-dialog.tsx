@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Check, Copy, ExternalLink, Plug } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -29,24 +30,15 @@ interface InstallDialogProps {
   basePath: string | null
 }
 
-const AGENTS: { value: Agent; label: string; hint: string }[] = [
-  { value: "opencode", label: "opencode", hint: "原生 mcp add" },
-  { value: "claude", label: "Claude Code", hint: "--transport http" },
-  { value: "codex", label: "Codex", hint: "原生 mcp add" },
-  { value: "generic", label: "通用", hint: "仅给端点" },
-]
-
-const TARGETS: { value: Target; label: string }[] = [
-  { value: "global", label: "全局" },
-  { value: "project", label: "当前项目" },
-]
-
-const TABS: { value: Tab; label: string }[] = [
-  { value: "mcp", label: "MCP 命令" },
-  { value: "json", label: "mcpServers JSON" },
+const AGENT_VALUES: Agent[] = ["opencode", "claude", "codex", "generic"]
+const TARGET_VALUES: Target[] = ["global", "project"]
+const TAB_VALUES: { value: Tab; labelKey: string }[] = [
+  { value: "mcp", labelKey: "install.tabMcp" },
+  { value: "json", labelKey: "install.tabJson" },
 ]
 
 export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [agent, setAgent] = useState<Agent>("opencode")
   const [target, setTarget] = useState<Target>("global")
@@ -96,26 +88,24 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Plug className="size-4" />
-          接入 Agent
+          {t("install.trigger")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl sm:max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>接入到 Agent</DialogTitle>
-          <DialogDescription>
-            把本实例的文件搜索能力装进 opencode / Claude Code / Codex。
-          </DialogDescription>
+          <DialogTitle>{t("install.title")}</DialogTitle>
+          <DialogDescription>{t("install.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="min-w-0 space-y-4">
           <section className="space-y-2">
-            <span className="text-sm font-medium">实例信息</span>
+            <span className="text-sm font-medium">{t("install.instanceInfo")}</span>
             <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 rounded-md border bg-muted/30 p-3 text-xs">
-              <span className="text-muted-foreground">名称</span>
+              <span className="text-muted-foreground">{t("install.name")}</span>
               <code className="font-mono">{instanceName || "plocate"}</code>
-              <span className="text-muted-foreground">MCP 端点</span>
-              <code className="min-w-0 break-all font-mono">{url || "…"}</code>
-              <span className="text-muted-foreground">索引范围</span>
+              <span className="text-muted-foreground">{t("install.endpoint")}</span>
+              <code className="min-w-0 break-all font-mono">{url || t("install.placeholderEndpoint")}</code>
+              <span className="text-muted-foreground">{t("install.scope")}</span>
               {ready ? (
                 <code className="min-w-0 break-all font-mono">{basePath}</code>
               ) : (
@@ -125,22 +115,25 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
           </section>
 
           <section className="space-y-2">
-            <span className="text-sm font-medium">安装目标</span>
+            <span className="text-sm font-medium">{t("install.installTarget")}</span>
             <div className="grid grid-cols-2 gap-3">
               <RadioGroup
-                label="Agent"
+                label={t("install.agentLabel")}
                 value={agent}
-                options={AGENTS.map((a) => ({
-                  value: a.value,
-                  label: a.label,
-                  hint: a.hint,
+                options={AGENT_VALUES.map((a) => ({
+                  value: a,
+                  label: t(`install.agents.${a}.label`),
+                  hint: t(`install.agents.${a}.hint`),
                 }))}
                 onChange={(v) => setAgent(v as Agent)}
               />
               <RadioGroup
-                label="安装到"
+                label={t("install.targetLabel")}
                 value={target}
-                options={TARGETS.map((t) => ({ value: t.value, label: t.label }))}
+                options={TARGET_VALUES.map((v) => ({
+                  value: v,
+                  label: t(`install.targets.${v}`),
+                }))}
                 onChange={(v) => setTarget(v as Target)}
               />
             </div>
@@ -148,19 +141,19 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
 
           <section className="space-y-2">
             <div className="flex gap-1 rounded-md bg-muted/40 p-1">
-              {TABS.map((t) => (
+              {TAB_VALUES.map((tTab) => (
                 <button
-                  key={t.value}
+                  key={tTab.value}
                   type="button"
-                  onClick={() => setTab(t.value)}
+                  onClick={() => setTab(tTab.value)}
                   className={cn(
                     "flex-1 rounded-[inherit] px-3 py-1.5 text-sm font-medium transition-colors",
-                    tab === t.value
+                    tab === tTab.value
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {t.label}
+                  {t(tTab.labelKey)}
                 </button>
               ))}
             </div>
@@ -170,9 +163,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
               onCopy={() => copy(current)}
               copyable={secure}
             />
-            <p className="text-muted-foreground text-xs">
-              复制后粘贴到终端执行（MCP 命令）或合并进对应配置文件（JSON）。
-            </p>
+            <p className="text-muted-foreground text-xs">{t("install.copyHint")}</p>
           </section>
 
           <div className="flex justify-end">
@@ -188,7 +179,7 @@ export function InstallDialog({ instanceName, basePath }: InstallDialogProps) {
                 rel="noreferrer"
               >
                 <ExternalLink className="size-3.5" />
-                MCP 文档
+                {t("install.mcpDocs")}
               </a>
             </Button>
           </div>
@@ -249,10 +240,11 @@ function SnippetBlock({
   onCopy: () => void
   copyable?: boolean
 }) {
+  const { t } = useTranslation()
   return (
     <div className="relative min-w-0">
       <pre className="max-h-60 min-w-0 overflow-auto whitespace-pre rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
-        {value || "（等待生成）"}
+        {value || t("install.generating")}
       </pre>
       {copyable && (
         <Button
