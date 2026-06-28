@@ -5,7 +5,7 @@ import i18n, { SUPPORTED_LANGUAGES, type Language } from "@/i18n"
 import { cn } from "@/lib/utils"
 
 const LANG_LABELS: Record<Language, string> = {
-  "zh-CN": "中文",
+  zh: "中文",
   en: "English",
 }
 
