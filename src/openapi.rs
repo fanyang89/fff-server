@@ -1,5 +1,5 @@
-use utoipa::openapi::Server;
 use utoipa::OpenApi;
+use utoipa::openapi::Server;
 
 #[derive(OpenApi)]
 #[openapi(
