@@ -43,19 +43,20 @@ pub struct AppState {
     /// How long a request may wait for a concurrency slot before 503.
     /// Distinct from `search_timeout` (which bounds the plocate run itself).
     queue_timeout: Duration,
+    /// Cap on fuzzy candidate recall (also bounds the stat fan-out).
+    /// Configurable so HDD deployments can trade recall for latency.
+    fuzzy_candidate_cap: usize,
+    /// Whether to drop stat_cache on reindex completion. Default true;
+    /// HDD deployments may set false to avoid the post-reindex cold window.
+    invalidate_stat_cache_on_reindex: bool,
     updatedb_timeout: Duration,
 }
 
 /// Upper bound on the stat cache size. Each entry is ~100 B, so this caps
 /// memory near 10 MB. Normal use stays far below (only searched paths enter,
-/// and the cache is cleared on every reindex).
+/// and the cache is cleared on every reindex unless
+/// --invalidate-stat-cache-on-reindex=false).
 const STAT_CACHE_CAPACITY: u64 = 100_000;
-
-/// Upper bound on the candidate set fed to the nucleo fuzzy ranker. plocate
-/// recalls candidates with multi-pattern AND semantics; this cap keeps the
-/// ranking pass (and the per-path stat fan-out) bounded. The final response
-/// is still limited by the client's `limit`.
-const FUZZY_CANDIDATE_CAP: usize = 1000;
 
 #[derive(Clone, Debug)]
 pub struct ReindexRecord {
@@ -96,6 +97,8 @@ impl AppState {
             search_concurrency: Arc::new(Semaphore::new(cfg.max_concurrent_searches.max(1))),
             search_timeout: Duration::from_secs(cfg.search_timeout_secs),
             queue_timeout: Duration::from_secs(cfg.queue_timeout_secs),
+            fuzzy_candidate_cap: cfg.fuzzy_candidate_cap.max(1),
+            invalidate_stat_cache_on_reindex: cfg.invalidate_stat_cache_on_reindex,
             updatedb_timeout: Duration::from_secs(cfg.updatedb_timeout_secs),
         })
     }
@@ -177,10 +180,11 @@ impl AppState {
             return Ok(SearchResponse::empty());
         }
         let _permit = self.acquire_permit().await?;
+        let cap = self.fuzzy_candidate_cap;
         let raw = self
-            .run_plocate_multi(&tokens, FUZZY_CANDIDATE_CAP, case_insensitive)
+            .run_plocate_multi(&tokens, cap, case_insensitive)
             .await?;
-        // Stat fan-out for fuzzy is up to FUZZY_CANDIDATE_CAP=1000 paths —
+        // Stat fan-out for fuzzy is up to `cap` paths (default 1000) —
         // the heaviest path through the server. Moving it off the tokio
         // worker is the single most important fix for HDD deployments.
         let base_path = self.base_path.clone();
@@ -188,7 +192,7 @@ impl AppState {
         let items = tokio::task::spawn_blocking(move || parse_paths(&raw, &base_path, &stat_cache))
             .await
             .map_err(|e| AppError::Internal(format!("parse_paths join error: {e}")))?;
-        let truncated = items.len() >= FUZZY_CANDIDATE_CAP;
+        let truncated = items.len() >= cap;
         // Rank with nucleo. match_paths() tunes scoring for path-like input
         // (prefers prefix/segment matches over mid-word matches).
         let mut matcher = Matcher::new(nucleo_matcher::Config::DEFAULT.match_paths());
@@ -341,9 +345,15 @@ impl AppState {
             if let Ok(mut g) = state.last_run.lock() {
                 *g = Some(rec);
             }
-            // The index reflects the filesystem as of now, so stat results from
-            // the previous window are stale — drop them.
-            state.stat_cache.invalidate_all();
+            // The index reflects the filesystem as of now, so stat results
+            // from the previous window are stale. By default we drop them;
+            // HDD deployments may set --invalidate-stat-cache-on-reindex=false
+            // to keep the cache warm across reindexes (at the cost of briefly
+            // reporting deleted directories with a trailing slash until LRU
+            // eviction catches up).
+            if state.invalidate_stat_cache_on_reindex {
+                state.stat_cache.invalidate_all();
+            }
             state.reindexing.store(false, Ordering::Release);
         });
         ReindexOutcome::Started

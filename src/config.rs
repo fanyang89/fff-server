@@ -59,6 +59,32 @@ pub struct Config {
     #[arg(long, env = "PLOCATE_SERVER_QUEUE_TIMEOUT_SECS", default_value_t = 5)]
     pub queue_timeout_secs: u64,
 
+    /// Upper bound on the candidate set fed to the nucleo fuzzy ranker.
+    /// plocate recalls candidates with multi-pattern AND semantics; this cap
+    /// bounds the ranking pass AND the per-path stat fan-out that follows.
+    /// On SSD the default 1000 is fine (stat is sub-millisecond). On HDD
+    /// where each stat costs 5-20 ms, lowering to 200 cuts fuzzy latency
+    /// 5× at the cost of recall on rare multi-token queries.
+    #[arg(
+        long,
+        env = "PLOCATE_SERVER_FUZZY_CANDIDATE_CAP",
+        default_value_t = 1000
+    )]
+    pub fuzzy_candidate_cap: usize,
+
+    /// Whether to clear stat_cache when a reindex completes. Default true
+    /// keeps results strictly consistent with the new index. On HDD, clearing
+    /// means every post-reindex query pays the full stat waterfall (100-1000
+    /// cold stats × HDD latency). Set to false to keep the cache warm across
+    /// reindexes — at the cost of briefly reporting deleted directories with
+    /// a trailing slash until natural LRU eviction catches up.
+    #[arg(
+        long,
+        env = "PLOCATE_SERVER_INVALIDATE_STAT_CACHE_ON_REINDEX",
+        default_value_t = true
+    )]
+    pub invalidate_stat_cache_on_reindex: bool,
+
     /// Per-reindex timeout (seconds). An updatedb run exceeding this is killed.
     /// Generous by default to accommodate very large trees (10M+ files).
     #[arg(
